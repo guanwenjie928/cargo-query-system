@@ -153,4 +153,6 @@ def parse_stock_excel(file_path: str) -> Dict[str, Any]:
     }
 
     wb.close()
+    del wb
+    import gc; gc.collect()
     return result

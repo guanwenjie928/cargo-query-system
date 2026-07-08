@@ -247,4 +247,6 @@ def parse_quotation_excel(file_path: str) -> Dict[str, Any]:
             result["summary"]["categories"][cat] += 1
 
     wb.close()
+    del wb
+    import gc; gc.collect()
     return result

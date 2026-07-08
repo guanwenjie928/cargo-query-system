@@ -4,6 +4,8 @@
 import os
 import shutil
 import tempfile
+import gc
+import time
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from backend.database import get_db
@@ -90,7 +92,13 @@ async def upload_excel(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"导入失败: {str(e)}")
     finally:
-        os.unlink(tmp_path)
+        for _ in range(3):
+            gc.collect()
+            try:
+                os.unlink(tmp_path)
+                break
+            except PermissionError:
+                time.sleep(0.5)
 
 
 @router.post("/parse")
@@ -174,7 +182,13 @@ async def parse_excel_preview(
                 },
             }
     finally:
-        os.unlink(tmp_path)
+        for _ in range(3):
+            gc.collect()
+            try:
+                os.unlink(tmp_path)
+                break
+            except PermissionError:
+                time.sleep(0.5)
 
 
 @router.get("/logs")
