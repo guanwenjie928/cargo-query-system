@@ -19,7 +19,7 @@ from backend.database import init_db
 from backend.routers import products, matrix, import_excel, images
 
 app = FastAPI(
-    title="货盘查询系统",
+    title="杰仔数据中心",
     description="多维度货盘查询与管理系统",
     version="1.0.0",
 )

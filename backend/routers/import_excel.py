@@ -42,7 +42,7 @@ async def upload_excel(
     # 读取文件内容
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="文件大小超过50MB限制")
+        raise HTTPException(status_code=400, detail="文件大小超过500MB限制")
 
     # 保存到临时文件
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
@@ -103,7 +103,7 @@ async def parse_excel_preview(
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="文件大小超过50MB限制")
+        raise HTTPException(status_code=400, detail="文件大小超过500MB限制")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
         tmp.write(content)
@@ -112,6 +112,27 @@ async def parse_excel_preview(
     try:
         file_type = detect_file_type(file.filename)
         file_date = extract_file_date(file.filename)
+
+        # 当文件名无法识别类型时，尝试自动探测
+        if file_type == "unknown":
+            try:
+                parsed = parse_stock_excel(tmp_path)
+                if parsed["summary"]["stock_sheet_count"] > 0:
+                    file_type = "stock"
+                else:
+                    raise ValueError("not stock")
+            except Exception:
+                try:
+                    parsed = parse_quotation_excel(tmp_path)
+                    if parsed["summary"]["product_count"] > 0:
+                        file_type = "quotation"
+                    else:
+                        raise ValueError("无法识别文件类型")
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"无法识别文件类型，请确认文件名包含'库存'或'报价': {str(e)}"
+                    )
 
         if file_type == "stock":
             parsed = parse_stock_excel(tmp_path)
@@ -152,8 +173,6 @@ async def parse_excel_preview(
                     ],
                 },
             }
-        else:
-            raise HTTPException(status_code=400, detail="无法识别文件类型，请确认文件名包含'库存'或'报价'")
     finally:
         os.unlink(tmp_path)
 
