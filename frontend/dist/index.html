@@ -3,132 +3,930 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>货盘查询系统</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ant-design-vue@4.2.3/dist/reset.css">
+    <title>杰仔数据中心</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* ========== CSS 变量系统 ========== */
+        :root {
+            /* 主色 */
+            --orange: #FF6B35;
+            --magenta: #C724B1;
+            --hot-pink: #FF0090;
+            --amber: #FFB100;
+            --teal: #06D6A0;
+            --coral: #FF512F;
+            --peach: #FF9A8B;
+            --sunset-pink: #FF6A88;
+
+            /* 背景 */
+            --bg-cream: #FFF8F0;
+            --bg-white: #FFFFFF;
+            --bg-glass: rgba(255, 248, 240, 0.72);
+            --bg-glass-strong: rgba(255, 248, 240, 0.88);
+
+            /* 文字 */
+            --text-primary: #2D1B0E;
+            --text-secondary: #6B4C3B;
+            --text-muted: #A08574;
+            --text-on-gradient: #FFFFFF;
+
+            /* 边框 */
+            --border-light: rgba(255, 107, 53, 0.12);
+            --border-medium: rgba(255, 107, 53, 0.25);
+            --border-strong: rgba(199, 36, 177, 0.3);
+
+            /* 渐变 */
+            --grad-primary: linear-gradient(135deg, #FF6B35 0%, #C724B1 100%);
+            --grad-sunset: linear-gradient(135deg, #FF512F 0%, #DD2476 100%);
+            --grad-peach: linear-gradient(135deg, #FF9A8B 0%, #FF6A88 50%, #FF99AC 100%);
+            --grad-golden: linear-gradient(135deg, #FF9A00 0%, #FF6B6B 50%, #FF3366 100%);
+            --grad-warm-glow: radial-gradient(circle at 30% 30%, rgba(255,107,53,0.15), transparent 70%);
+
+            /* 阴影 */
+            --shadow-sm: 0 2px 8px rgba(255, 107, 53, 0.06);
+            --shadow-md: 0 4px 20px rgba(255, 107, 53, 0.08);
+            --shadow-lg: 0 8px 32px rgba(255, 107, 53, 0.12);
+            --shadow-hover: 0 20px 40px rgba(255, 107, 53, 0.15), 0 0 30px rgba(199, 36, 177, 0.08);
+
+            /* 字体 */
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+            /* 动画曲线 */
+            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-entrance: cubic-bezier(0.215, 0.61, 0.355, 1);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f0f2f5; }
-        #app { min-height: 100vh; }
 
-        /* 顶栏 */
-        .header { background: #fff; padding: 0 24px; height: 64px; display: flex; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 100; }
-        .header-logo { font-size: 20px; font-weight: 700; color: #1677ff; margin-right: 48px; }
-        .header-nav { display: flex; gap: 8px; flex: 1; }
-        .nav-item { padding: 8px 16px; cursor: pointer; border-radius: 6px; font-size: 14px; color: #595959; transition: all 0.2s; }
-        .nav-item:hover { background: #f0f5ff; color: #1677ff; }
-        .nav-item.active { background: #1677ff; color: #fff; }
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-cream);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
 
-        /* 统计卡片 */
-        .stats-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-        .stat-card { background: #fff; border-radius: 8px; padding: 20px 24px; flex: 1; min-width: 200px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .stat-card .label { font-size: 13px; color: #8c8c8c; margin-bottom: 8px; }
-        .stat-card .value { font-size: 28px; font-weight: 700; }
-        .stat-card .value.green { color: #52c41a; }
-        .stat-card .value.orange { color: #fa8c16; }
-        .stat-card .value.red { color: #ff4d4f; }
-        .stat-card .value.blue { color: #1677ff; }
+        #app { min-height: 100vh; position: relative; }
 
-        /* 矩阵 */
-        .matrix-container { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 24px; }
-        .matrix-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-        .matrix-tab { padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; background: #f5f5f5; color: #595959; transition: all 0.2s; }
-        .matrix-tab:hover { background: #e6f7ff; color: #1677ff; }
-        .matrix-tab.active { background: #1677ff; color: #fff; }
-        .matrix-table { width: 100%; border-collapse: collapse; }
-        .matrix-table th, .matrix-table td { border: 1px solid #f0f0f0; padding: 12px 16px; text-align: center; font-size: 14px; }
-        .matrix-table th { background: #fafafa; font-weight: 600; color: #262626; }
-        .matrix-table td.cell { cursor: pointer; transition: all 0.2s; position: relative; }
-        .matrix-table td.cell:hover { background: #e6f7ff; }
-        .matrix-table td.cell .count { font-size: 18px; font-weight: 700; color: #1677ff; }
-        .matrix-table td.cell .previews { display: flex; gap: 4px; margin-top: 4px; justify-content: center; }
-        .matrix-table td.cell .previews img { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; }
-        .matrix-table td.cell.empty .count { color: #d9d9d9; }
+        /* ========== 背景流动色块 ========== */
+        .bg-blobs {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .blob {
+            position: absolute;
+            border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+            filter: blur(80px);
+            opacity: 0.35;
+            animation: morph 20s ease-in-out infinite;
+        }
+        .blob-1 {
+            width: 500px; height: 500px;
+            background: var(--orange);
+            top: -10%; left: -5%;
+            animation-delay: 0s;
+        }
+        .blob-2 {
+            width: 400px; height: 400px;
+            background: var(--magenta);
+            top: 30%; right: -8%;
+            animation-delay: -7s;
+            opacity: 0.25;
+        }
+        .blob-3 {
+            width: 350px; height: 350px;
+            background: var(--hot-pink);
+            bottom: -10%; left: 30%;
+            animation-delay: -14s;
+            opacity: 0.2;
+        }
+        @keyframes morph {
+            0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: translate(0, 0) rotate(0deg); }
+            33% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; transform: translate(30px, -20px) rotate(120deg); }
+            66% { border-radius: 50% 50% 40% 60% / 40% 70% 50% 40%; transform: translate(-20px, 30px) rotate(240deg); }
+        }
 
-        /* 商品列表 */
-        .content-area { padding: 24px; max-width: 1600px; margin: 0 auto; }
-        .toolbar { background: #fff; border-radius: 8px; padding: 16px 24px; margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .toolbar input, .toolbar select { padding: 6px 12px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; outline: none; }
-        .toolbar input:focus, .toolbar select:focus { border-color: #1677ff; }
-        .toolbar input { min-width: 200px; }
-        .btn { padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; border: 1px solid #d9d9d9; background: #fff; color: #595959; transition: all 0.2s; }
-        .btn:hover { border-color: #1677ff; color: #1677ff; }
-        .btn-primary { background: #1677ff; color: #fff; border-color: #1677ff; }
-        .btn-primary:hover { background: #4096ff; }
+        /* ========== 顶部导航 ========== */
+        .header {
+            background: var(--bg-glass-strong);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            padding: 0 32px;
+            height: 68px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 1px 0 var(--border-light);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-        /* 商品卡片网格 */
-        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
-        .product-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); cursor: pointer; transition: all 0.2s; }
-        .product-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
-        .product-card .card-img { width: 100%; height: 160px; object-fit: cover; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #d9d9d9; font-size: 40px; }
-        .product-card .card-body { padding: 12px 16px; }
-        .product-card .card-sku { font-size: 13px; color: #8c8c8c; margin-bottom: 4px; }
-        .product-card .card-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: #262626; }
-        .product-card .card-info { display: flex; justify-content: space-between; font-size: 13px; }
-        .product-card .card-price { color: #ff4d4f; font-weight: 600; font-size: 16px; }
-        .product-card .card-stock { color: #595959; }
-        .product-card .card-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 4px; }
-        .tag-green { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
-        .tag-orange { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
-        .tag-red { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
-        .tag-blue { background: #e6f7ff; color: #1677ff; border: 1px solid #91d5ff; }
-        .tag-gray { background: #f5f5f5; color: #8c8c8c; border: 1px solid #d9d9d9; }
+        /* Logo */
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-right: 48px;
+            text-decoration: none;
+        }
+        .logo-mark {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            width: 32px;
+            height: 32px;
+        }
+        .logo-mark span {
+            border-radius: 3px;
+            background: var(--grad-primary);
+            opacity: 0.4;
+        }
+        .logo-mark span:nth-child(1) { opacity: 1; }
+        .logo-mark span:nth-child(2) { opacity: 0.7; }
+        .logo-mark span:nth-child(3) { opacity: 0.4; }
+        .logo-mark span:nth-child(4) { opacity: 0.8; }
+        .logo-mark span:nth-child(5) { opacity: 1; }
+        .logo-mark span:nth-child(6) { opacity: 0.6; }
+        .logo-mark span:nth-child(7) { opacity: 0.5; }
+        .logo-mark span:nth-child(8) { opacity: 0.9; }
+        .logo-mark span:nth-child(9) { opacity: 0.7; }
 
-        /* 表格视图 */
-        .product-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .product-table th { background: #fafafa; padding: 12px 16px; text-align: left; font-size: 13px; color: #262626; font-weight: 600; border-bottom: 1px solid #f0f0f0; }
-        .product-table td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #595959; }
-        .product-table tr:hover { background: #fafafa; }
-        .product-table img { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; }
-        .product-table .no-img { width: 48px; height: 48px; border-radius: 4px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #d9d9d9; font-size: 20px; }
+        .logo-text {
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #FF6B35, #C724B1, #FF0090, #FF6B35);
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientFlow 5s linear infinite;
+            letter-spacing: -0.02em;
+        }
+        @keyframes gradientFlow {
+            to { background-position: 300% center; }
+        }
 
-        /* 分页 */
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; }
-        .pagination .page-info { font-size: 14px; color: #8c8c8c; margin-right: 16px; }
+        .header-nav {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }
+        .nav-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.3s var(--ease-smooth);
+            position: relative;
+        }
+        .nav-item:hover {
+            color: var(--orange);
+            background: rgba(255, 107, 53, 0.06);
+        }
+        .nav-item.active {
+            color: var(--text-on-gradient);
+            background: var(--grad-primary);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
 
-        /* 抽屉 */
-        .drawer-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 200; }
-        .drawer { position: fixed; top: 0; right: 0; width: 500px; max-width: 90vw; height: 100vh; background: #fff; z-index: 201; overflow-y: auto; padding: 24px; }
-        .drawer-title { font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
-        .drawer-close { cursor: pointer; font-size: 20px; color: #8c8c8c; }
+        /* ========== 内容区域 ========== */
+        .content-area {
+            padding: 28px 32px;
+            max-width: 1680px;
+            margin: 0 auto;
+            animation: fadeIn 0.4s var(--ease-smooth);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ========== 统计卡片 Bento Grid ========== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 22px 24px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.4s var(--ease-spring);
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            animation: cardEntrance 0.6s var(--ease-entrance) forwards;
+        }
+        .stat-card:nth-child(1) { animation-delay: 0.05s; }
+        .stat-card:nth-child(2) { animation-delay: 0.1s; }
+        .stat-card:nth-child(3) { animation-delay: 0.15s; }
+        .stat-card:nth-child(4) { animation-delay: 0.2s; }
+        .stat-card:nth-child(5) { animation-delay: 0.25s; }
+        .stat-card:nth-child(6) { animation-delay: 0.3s; }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--grad-primary);
+            border-radius: 0 3px 3px 0;
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 120px; height: 120px;
+            background: var(--grad-warm-glow);
+            pointer-events: none;
+        }
+        .stat-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--border-medium);
+        }
+        .stat-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-card .value.solid { -webkit-text-fill-color: initial; background: none; }
+        .stat-card .value.green { color: var(--teal); -webkit-text-fill-color: var(--teal); background: none; }
+        .stat-card .value.orange { color: var(--orange); -webkit-text-fill-color: var(--orange); background: none; }
+        .stat-card .value.red { color: var(--coral); -webkit-text-fill-color: var(--coral); background: none; }
+        .stat-card .value.blue { color: var(--magenta); -webkit-text-fill-color: var(--magenta); background: none; }
+
+        @keyframes cardEntrance {
+            from { opacity: 0; transform: translateY(24px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ========== 矩阵看板 ========== */
+        .matrix-container {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+        }
+
+        .matrix-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .matrix-tab {
+            padding: 8px 18px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            background: rgba(255, 107, 53, 0.06);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s var(--ease-smooth);
+        }
+        .matrix-tab:hover {
+            background: rgba(255, 107, 53, 0.12);
+            color: var(--orange);
+            border-color: var(--border-medium);
+        }
+        .matrix-tab.active {
+            background: var(--grad-primary);
+            color: var(--text-on-gradient);
+            border-color: transparent;
+            box-shadow: 0 4px 14px rgba(255, 107, 53, 0.25);
+        }
+
+        .matrix-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 6px;
+        }
+        .matrix-table th {
+            padding: 12px 16px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            background: rgba(255, 107, 53, 0.04);
+            border-radius: 10px;
+        }
+        .matrix-table td {
+            padding: 14px 16px;
+            text-align: center;
+            font-size: 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.5);
+            transition: all 0.3s var(--ease-smooth);
+        }
+        .matrix-table td.cell {
+            cursor: pointer;
+            position: relative;
+        }
+        .matrix-table td.cell:hover {
+            transform: scale(1.05);
+            background: rgba(255, 107, 53, 0.08);
+            box-shadow: 0 0 0 2px var(--orange), var(--shadow-md);
+            z-index: 1;
+        }
+        .matrix-table td.cell .count {
+            font-size: 20px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .matrix-table td.cell.empty .count {
+            background: none;
+            -webkit-text-fill-color: var(--text-muted);
+            color: var(--text-muted);
+            opacity: 0.4;
+        }
+        .matrix-table td.cell .previews {
+            display: flex;
+            gap: 4px;
+            margin-top: 6px;
+            justify-content: center;
+        }
+        .matrix-table td.cell .previews img {
+            width: 34px;
+            height: 34px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1px solid var(--border-light);
+        }
+
+        /* ========== 工具栏 ========== */
+        .toolbar {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .toolbar input, .toolbar select {
+            padding: 8px 14px;
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            color: var(--text-primary);
+            background: var(--bg-white);
+            outline: none;
+            transition: all 0.3s var(--ease-smooth);
+        }
+        .toolbar input:focus, .toolbar select:focus {
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.12);
+        }
+        .toolbar input { min-width: 220px; }
+        .toolbar input::placeholder { color: var(--text-muted); }
+
+        .btn {
+            padding: 8px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid var(--border-light);
+            background: var(--bg-white);
+            color: var(--text-secondary);
+            transition: all 0.3s var(--ease-smooth);
+            font-family: var(--font-sans);
+        }
+        .btn:hover {
+            border-color: var(--border-medium);
+            color: var(--orange);
+            background: rgba(255, 107, 53, 0.04);
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-primary {
+            background: var(--grad-primary);
+            color: var(--text-on-gradient);
+            border-color: transparent;
+            box-shadow: 0 4px 14px rgba(255, 107, 53, 0.25);
+        }
+        .btn-primary:hover {
+            background: var(--grad-sunset);
+            color: var(--text-on-gradient);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.35);
+        }
+
+        /* ========== 商品卡片 ========== */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 18px;
+        }
+        .product-card {
+            background: var(--bg-white);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all 0.4s var(--ease-spring);
+            position: relative;
+            opacity: 0;
+            animation: cardEntrance 0.5s var(--ease-entrance) forwards;
+        }
+        .product-card:nth-child(1) { animation-delay: 0.03s; }
+        .product-card:nth-child(2) { animation-delay: 0.06s; }
+        .product-card:nth-child(3) { animation-delay: 0.09s; }
+        .product-card:nth-child(4) { animation-delay: 0.12s; }
+        .product-card:nth-child(5) { animation-delay: 0.15s; }
+        .product-card:nth-child(6) { animation-delay: 0.18s; }
+        .product-card:nth-child(7) { animation-delay: 0.21s; }
+        .product-card:nth-child(8) { animation-delay: 0.24s; }
+        .product-card:nth-child(n+9) { animation-delay: 0.27s; }
+
+        .product-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            z-index: 2;
+        }
+        .product-card[data-stock="充足"]::before { background: var(--teal); }
+        .product-card[data-stock="紧张"]::before { background: var(--amber); }
+        .product-card[data-stock="缺货"]::before { background: var(--coral); }
+
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--border-medium);
+        }
+        .product-card .card-img {
+            width: 100%;
+            height: 170px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #FFF0E5, #FFE0F0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            overflow: hidden;
+        }
+        .product-card .card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s var(--ease-smooth);
+        }
+        .product-card:hover .card-img img {
+            transform: scale(1.06);
+        }
+        .product-card .card-body { padding: 14px 18px; }
+        .product-card .card-sku {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+        .product-card .card-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            line-height: 1.35;
+        }
+        .product-card .card-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .product-card .card-price {
+            font-size: 18px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .product-card .card-stock { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+        .product-card .card-tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+        /* 状态标签 */
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .tag-green { background: rgba(6, 214, 160, 0.12); color: var(--teal); }
+        .tag-orange { background: rgba(255, 177, 0, 0.15); color: #C88500; }
+        .tag-red { background: rgba(255, 81, 47, 0.12); color: var(--coral); }
+        .tag-magenta { background: rgba(199, 36, 177, 0.12); color: var(--magenta); }
+        .tag-amber { background: rgba(255, 107, 53, 0.12); color: var(--orange); }
+        .tag-gray { background: rgba(160, 133, 116, 0.15); color: var(--text-muted); }
+
+        /* ========== 表格视图 ========== */
+        .product-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-white);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .product-table th {
+            background: var(--bg-glass-strong);
+            backdrop-filter: blur(8px);
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-light);
+        }
+        .product-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 107, 53, 0.06);
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .product-table tbody tr {
+            transition: background 0.2s var(--ease-smooth);
+        }
+        .product-table tbody tr:hover {
+            background: rgba(255, 107, 53, 0.04);
+        }
+        .product-table tbody tr:last-child td { border-bottom: none; }
+        .product-table img {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid var(--border-light);
+        }
+        .product-table .no-img {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #FFF0E5, #FFE0F0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+        .product-table .price-cell {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .product-table .sku-cell {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        /* ========== 分页 ========== */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 28px;
+        }
+        .pagination .page-info {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-right: 16px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ========== 抽屉（详情） ========== */
+        .drawer-mask {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(45, 27, 14, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            animation: fadeIn 0.3s var(--ease-smooth);
+        }
+        .drawer {
+            position: fixed;
+            top: 0; right: 0;
+            width: 520px;
+            max-width: 92vw;
+            height: 100vh;
+            background: var(--bg-glass-strong);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            z-index: 201;
+            overflow-y: auto;
+            padding: 28px;
+            box-shadow: -8px 0 40px rgba(255, 107, 53, 0.12);
+            animation: slideInRight 0.4s var(--ease-spring);
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        .drawer-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .drawer-close {
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-muted);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s var(--ease-smooth);
+        }
+        .drawer-close:hover {
+            background: rgba(255, 107, 53, 0.1);
+            color: var(--orange);
+            transform: rotate(90deg);
+        }
+
         .detail-section { margin-bottom: 24px; }
-        .detail-section h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #262626; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
-        .detail-row { display: flex; padding: 6px 0; font-size: 14px; }
-        .detail-row .label { width: 120px; color: #8c8c8c; flex-shrink: 0; }
-        .detail-row .value { color: #262626; flex: 1; }
-        .detail-img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; margin-bottom: 16px; background: #f5f5f5; }
-        .fee-card { background: #f9f9f9; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; }
-        .fee-card .fee-title { font-weight: 600; margin-bottom: 4px; }
-        .fee-card .fee-desc { font-size: 12px; color: #8c8c8c; }
+        .detail-section h3 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            padding-left: 12px;
+            border-left: 3px solid;
+            border-image: var(--grad-primary) 1;
+        }
+        .detail-row {
+            display: flex;
+            padding: 7px 0;
+            font-size: 14px;
+        }
+        .detail-row .label {
+            width: 120px;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+        .detail-row .value {
+            color: var(--text-primary);
+            flex: 1;
+            font-weight: 500;
+        }
+        .detail-img {
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #FFF0E5, #FFE0F0);
+            box-shadow: var(--shadow-md);
+        }
+        .fee-card {
+            background: rgba(255, 107, 53, 0.04);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            transition: all 0.3s var(--ease-smooth);
+        }
+        .fee-card:hover {
+            border-color: var(--border-medium);
+            box-shadow: var(--shadow-sm);
+        }
+        .fee-card .fee-title { font-weight: 600; margin-bottom: 4px; color: var(--text-primary); }
+        .fee-card .fee-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 
-        /* 导入页 */
-        .import-area { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .upload-zone { border: 2px dashed #d9d9d9; border-radius: 8px; padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .upload-zone:hover { border-color: #1677ff; background: #f0f5ff; }
-        .upload-zone .icon { font-size: 48px; color: #d9d9d9; margin-bottom: 16px; }
-        .upload-zone .text { font-size: 15px; color: #595959; }
-        .upload-zone .hint { font-size: 13px; color: #8c8c8c; margin-top: 8px; }
-        .import-log { margin-top: 24px; }
-        .import-log-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        /* ========== 导入页 ========== */
+        .import-area {
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px) saturate(160%);
+            -webkit-backdrop-filter: blur(12px) saturate(160%);
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            padding: 36px;
+            box-shadow: var(--shadow-md);
+        }
+        .import-area h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .upload-zone {
+            border: 2px dashed var(--border-medium);
+            border-radius: 16px;
+            padding: 52px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s var(--ease-smooth);
+            background: rgba(255, 107, 53, 0.02);
+        }
+        .upload-zone:hover {
+            border-color: var(--orange);
+            background: rgba(255, 107, 53, 0.06);
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.1);
+            transform: scale(1.01);
+        }
+        .upload-zone .icon {
+            font-size: 52px;
+            margin-bottom: 16px;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .upload-zone .text { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
+        .upload-zone .hint { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+
+        .import-log { margin-top: 28px; }
+        .import-log-item {
+            padding: 14px 18px;
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-white);
+            transition: all 0.3s var(--ease-smooth);
+        }
+        .import-log-item:hover {
+            border-color: var(--border-medium);
+            box-shadow: var(--shadow-sm);
+        }
         .import-log-item .log-info { flex: 1; }
-        .import-log-item .log-file { font-weight: 600; font-size: 14px; }
-        .import-log-item .log-meta { font-size: 12px; color: #8c8c8c; margin-top: 4px; }
+        .import-log-item .log-file { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+        .import-log-item .log-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-        /* 模态框 */
-        .modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 300; display: flex; align-items: center; justify-content: center; }
-        .modal { background: #fff; border-radius: 8px; padding: 24px; width: 600px; max-width: 90vw; max-height: 80vh; overflow-y: auto; }
-        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+        /* ========== 模态框 ========== */
+        .modal-mask {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(45, 27, 14, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s var(--ease-smooth);
+        }
+        .modal {
+            background: var(--bg-glass-strong);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            padding: 28px;
+            width: 600px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            animation: modalIn 0.4s var(--ease-spring);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
 
-        /* 加载中 */
-        .loading { text-align: center; padding: 48px; color: #8c8c8c; font-size: 15px; }
-        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #f0f0f0; border-top-color: #1677ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        /* ========== 加载 ========== */
+        .loading {
+            text-align: center;
+            padding: 52px;
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(255, 107, 53, 0.15);
+            border-top-color: var(--orange);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 骨架屏 */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,107,53,0.04) 0%, rgba(255,107,53,0.08) 50%, rgba(255,107,53,0.04) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            .header { padding: 0 16px; }
+            .content-area { padding: 16px; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .product-grid { grid-template-columns: 1fr; }
+            .drawer { width: 100vw; }
+        }
+
+        /* ========== 无障碍：减少动画 ========== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
+<!-- 背景流动色块 -->
+<div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
 <div id="app">
     <!-- 顶栏 -->
     <div class="header">
-        <div class="header-logo">🦜 货盘查询系统</div>
+        <div class="logo-wrap">
+            <div class="logo-mark">
+                <span></span><span></span><span></span>
+                <span></span><span></span><span></span>
+                <span></span><span></span><span></span>
+            </div>
+            <div class="logo-text">杰仔数据中心</div>
+        </div>
         <div class="header-nav">
             <div class="nav-item" :class="{active: page==='dashboard'}" @click="goPage('dashboard')">矩阵看板</div>
             <div class="nav-item" :class="{active: page==='products'}" @click="goPage('products')">商品列表</div>
@@ -143,7 +941,7 @@
             <div class="stats-row">
                 <div class="stat-card">
                     <div class="label">总 SKU 数</div>
-                    <div class="value blue">{{ stats.total_skus || 0 }}</div>
+                    <div class="value">{{ stats.total_skus || 0 }}</div>
                 </div>
                 <div class="stat-card">
                     <div class="label">总库存件数</div>
@@ -185,7 +983,7 @@
                     </thead>
                     <tbody>
                         <tr v-for="(y, j) in matrixData.y_labels" :key="j">
-                            <td style="font-weight:600;">{{ y }}</td>
+                            <td style="font-weight:600;color:var(--text-secondary);">{{ y }}</td>
                             <td v-for="(x, i) in matrixData.x_labels" :key="i"
                                 class="cell"
                                 :class="{empty: !matrixData.matrix[j] || !matrixData.matrix[j][i]}"
@@ -235,9 +1033,11 @@
 
             <!-- 卡片视图 -->
             <div v-else-if="viewMode==='card'" class="product-grid">
-                <div class="product-card" v-for="p in products" :key="p.id" @click="showDetail(p.id)">
+                <div class="product-card" v-for="p in products" :key="p.id"
+                     :data-stock="p.stock_status"
+                     @click="showDetail(p.id)">
                     <div class="card-img">
-                        <img v-if="p.image_url" :src="p.image_url" style="width:100%;height:160px;object-fit:cover;" @error="handleImgError">
+                        <img v-if="p.image_url" :src="p.image_url" @error="handleImgError">
                         <span v-else>📦</span>
                     </div>
                     <div class="card-body">
@@ -245,13 +1045,13 @@
                         <div class="card-name">{{ p.product_name || '未命名' }}</div>
                         <div class="card-info">
                             <span class="card-price" v-if="p.price_usd">${{ p.price_usd }}</span>
-                            <span class="card-price" v-else>—</span>
+                            <span class="card-price" v-else style="background:none;-webkit-text-fill-color:var(--text-muted);">—</span>
                             <span class="card-stock">库存: {{ p.stock_total }}</span>
                         </div>
-                        <div style="margin-top:6px;">
-                            <span class="card-tag" :class="stockTagClass(p.stock_status)">{{ p.stock_status }}</span>
-                            <span class="card-tag tag-blue" v-if="p.category">{{ p.category }}</span>
-                            <span class="card-tag tag-gray" v-if="p.product_status && p.product_status !== '在售'">{{ p.product_status }}</span>
+                        <div class="card-tags">
+                            <span class="tag" :class="stockTagClass(p.stock_status)">{{ p.stock_status }}</span>
+                            <span class="tag tag-magenta" v-if="p.category">{{ p.category }}</span>
+                            <span class="tag tag-gray" v-if="p.product_status && p.product_status !== '在售'">{{ p.product_status }}</span>
                         </div>
                     </div>
                 </div>
@@ -279,15 +1079,15 @@
                             <img v-if="p.image_url" :src="p.image_url" @error="handleImgError">
                             <div v-else class="no-img">📦</div>
                         </td>
-                        <td>{{ p.sku }}</td>
+                        <td class="sku-cell">{{ p.sku }}</td>
                         <td>{{ p.product_name || '—' }}</td>
                         <td>{{ p.category || '—' }}</td>
-                        <td style="color:#ff4d4f;font-weight:600;">${{ p.price_usd || '—' }}</td>
-                        <td>¥{{ p.price_rmb || '—' }}</td>
-                        <td>{{ p.stock_total }}</td>
-                        <td><span class="card-tag" :class="stockTagClass(p.stock_status)">{{ p.stock_status }}</span></td>
-                        <td><span class="card-tag" :class="statusTagClass(p.product_status)">{{ p.product_status }}</span></td>
-                        <td><button class="btn" style="padding:2px 8px;" @click="showDetail(p.id)">详情</button></td>
+                        <td class="price-cell">${{ p.price_usd || '—' }}</td>
+                        <td style="font-variant-numeric:tabular-nums;">¥{{ p.price_rmb || '—' }}</td>
+                        <td style="font-variant-numeric:tabular-nums;">{{ p.stock_total }}</td>
+                        <td><span class="tag" :class="stockTagClass(p.stock_status)">{{ p.stock_status }}</span></td>
+                        <td><span class="tag" :class="statusTagClass(p.product_status)">{{ p.product_status }}</span></td>
+                        <td><button class="btn" style="padding:4px 12px;font-size:12px;" @click="showDetail(p.id)">详情</button></td>
                     </tr>
                 </tbody>
             </table>
@@ -297,7 +1097,7 @@
                 <span class="page-info">共 {{ total }} 条，第 {{ currentPage }}/{{ Math.ceil(total / pageSize) }} 页</span>
                 <button class="btn" :disabled="currentPage<=1" @click="changePage(1)">首页</button>
                 <button class="btn" :disabled="currentPage<=1" @click="changePage(currentPage-1)">上一页</button>
-                <select v-model.number="pageSize" @change="loadProducts" style="padding:4px 8px;">
+                <select v-model.number="pageSize" @change="loadProducts" style="padding:6px 10px;border:1px solid var(--border-light);border-radius:8px;font-size:13px;">
                     <option :value="20">20条/页</option>
                     <option :value="50">50条/页</option>
                     <option :value="100">100条/页</option>
@@ -310,7 +1110,7 @@
         <!-- ============ 导入管理 ============ -->
         <template v-if="page==='import'">
             <div class="import-area">
-                <h2 style="margin-bottom:24px;">导入 Excel 文件</h2>
+                <h2>导入 Excel 文件</h2>
                 <div class="upload-zone" @click="$refs.fileInput.click()">
                     <div class="icon">📁</div>
                     <div class="text">{{ importFile ? importFile.name : '点击选择 Excel 文件' }}</div>
@@ -320,16 +1120,16 @@
 
                 <!-- 预览结果 -->
                 <div v-if="parsePreview" style="margin-top:24px;">
-                    <h3 style="margin-bottom:12px;">解析预览</h3>
-                    <div style="background:#f9f9f9;border-radius:6px;padding:16px;margin-bottom:16px;">
-                        <div>文件类型: <b>{{ parsePreview.file_type === 'stock' ? '库存表' : '报价表' }}</b></div>
-                        <div>文件日期: <b>{{ parsePreview.file_date }}</b></div>
-                        <div v-if="parsePreview.file_type === 'stock'">
+                    <h3 style="margin-bottom:12px;font-size:16px;font-weight:600;">解析预览</h3>
+                    <div style="background:rgba(255,107,53,0.04);border:1px solid var(--border-light);border-radius:12px;padding:16px;margin-bottom:16px;">
+                        <div style="font-size:14px;color:var(--text-primary);">文件类型: <b>{{ parsePreview.file_type === 'stock' ? '库存表' : '报价表' }}</b></div>
+                        <div style="font-size:14px;color:var(--text-primary);">文件日期: <b>{{ parsePreview.file_date }}</b></div>
+                        <div v-if="parsePreview.file_type === 'stock'" style="font-size:13px;color:var(--text-secondary);margin-top:4px;">
                             库存Sheet: {{ parsePreview.summary.stock_sheet_count }} SKU /
                             图片Sheet: {{ parsePreview.summary.sheet2_count }} SKU /
                             图片: {{ parsePreview.summary.image_count }} 张
                         </div>
-                        <div v-else>
+                        <div v-else style="font-size:13px;color:var(--text-secondary);margin-top:4px;">
                             产品数: {{ parsePreview.summary.product_count }} /
                             图片: {{ parsePreview.summary.image_count }} 张 /
                             美东处理费: {{ parsePreview.summary.fees_east_count }} /
@@ -354,9 +1154,12 @@
                 </div>
 
                 <!-- 导入结果 -->
-                <div v-if="importResult" style="margin-top:24px;padding:16px;border-radius:6px;" :style="{background: importResult.code === 0 ? '#f6ffed' : '#fff2f0'}">
-                    <h3>{{ importResult.message }}</h3>
-                    <div v-if="importResult.data" style="margin-top:8px;font-size:14px;color:#595959;">
+                <div v-if="importResult" style="margin-top:24px;padding:16px;border-radius:12px;border:1px solid;" :style="{
+                    background: importResult.code === 0 ? 'rgba(6,214,160,0.06)' : 'rgba(255,81,47,0.06)',
+                    borderColor: importResult.code === 0 ? 'rgba(6,214,160,0.2)' : 'rgba(255,81,47,0.2)'
+                }">
+                    <h3 style="font-size:16px;font-weight:600;">{{ importResult.message }}</h3>
+                    <div v-if="importResult.data" style="margin-top:8px;font-size:14px;color:var(--text-secondary);">
                         总数: {{ importResult.data.total_rows }} /
                         成功: {{ importResult.data.success_rows }} /
                         合并更新: {{ importResult.data.merged_rows }} /
@@ -366,7 +1169,7 @@
 
                 <!-- 导入历史 -->
                 <div class="import-log" v-if="importLogs.length > 0">
-                    <h3 style="margin-bottom:12px;">导入历史</h3>
+                    <h3 style="margin-bottom:12px;font-size:16px;font-weight:600;">导入历史</h3>
                     <div class="import-log-item" v-for="log in importLogs" :key="log.id">
                         <div class="log-info">
                             <div class="log-file">{{ log.file_name }}</div>
@@ -396,31 +1199,31 @@
 
                     <div class="detail-section">
                         <h3>基础信息</h3>
-                        <div class="detail-row"><span class="label">SKU</span><span class="value">{{ detail.sku }}</span></div>
+                        <div class="detail-row"><span class="label">SKU</span><span class="value" style="font-family:var(--font-mono);">{{ detail.sku }}</span></div>
                         <div class="detail-row"><span class="label">产品名称</span><span class="value">{{ detail.product_name || '—' }}</span></div>
                         <div class="detail-row"><span class="label">英文品类</span><span class="value">{{ detail.product_name_en || '—' }}</span></div>
                         <div class="detail-row"><span class="label">品类</span><span class="value">{{ detail.category || '—' }}</span></div>
                         <div class="detail-row"><span class="label">产品状态</span><span class="value">
-                            <span class="card-tag" :class="statusTagClass(detail.product_status)">{{ detail.product_status }}</span>
+                            <span class="tag" :class="statusTagClass(detail.product_status)">{{ detail.product_status }}</span>
                         </span></div>
                         <div class="detail-row" v-if="detail.shipping_mark"><span class="label">唛头</span><span class="value">{{ detail.shipping_mark }}</span></div>
                     </div>
 
                     <div class="detail-section">
                         <h3>价格信息</h3>
-                        <div class="detail-row"><span class="label">USD 价格</span><span class="value" style="color:#ff4d4f;font-weight:600;">${{ detail.price_usd || '—' }}</span></div>
-                        <div class="detail-row"><span class="label">RMB 价格</span><span class="value">¥{{ detail.price_rmb || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">USD 价格</span><span class="value" style="font-size:18px;font-weight:700;background:var(--grad-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">${{ detail.price_usd || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">RMB 价格</span><span class="value" style="font-variant-numeric:tabular-nums;">¥{{ detail.price_rmb || '—' }}</span></div>
                         <div class="detail-row"><span class="label">价格区间</span><span class="value">{{ detail.price_range || '—' }}</span></div>
                         <div class="detail-row" v-if="detail.limit_price"><span class="label">限价</span><span class="value">{{ detail.limit_price }}</span></div>
-                        <div class="detail-row" v-if="detail.first_leg_fee"><span class="label">头程费</span><span class="value">¥{{ detail.first_leg_fee }}</span></div>
+                        <div class="detail-row" v-if="detail.first_leg_fee"><span class="label">头程费</span><span class="value" style="font-variant-numeric:tabular-nums;">¥{{ detail.first_leg_fee }}</span></div>
                     </div>
 
                     <div class="detail-section">
                         <h3>库存信息</h3>
-                        <div class="detail-row"><span class="label">总库存</span><span class="value">{{ detail.stock_total }} 件</span></div>
-                        <div class="detail-row"><span class="label">在途</span><span class="value">{{ detail.in_transit }} 件</span></div>
+                        <div class="detail-row"><span class="label">总库存</span><span class="value" style="font-variant-numeric:tabular-nums;">{{ detail.stock_total }} 件</span></div>
+                        <div class="detail-row"><span class="label">在途</span><span class="value" style="font-variant-numeric:tabular-nums;">{{ detail.in_transit }} 件</span></div>
                         <div class="detail-row"><span class="label">库存状态</span><span class="value">
-                            <span class="card-tag" :class="stockTagClass(detail.stock_status)">{{ detail.stock_status }}</span>
+                            <span class="tag" :class="stockTagClass(detail.stock_status)">{{ detail.stock_status }}</span>
                         </span></div>
                     </div>
 
@@ -431,8 +1234,8 @@
                             <tbody>
                                 <tr v-for="w in detail.warehouses" :key="w.warehouse">
                                     <td>{{ w.warehouse }}</td>
-                                    <td>{{ w.stock }}</td>
-                                    <td>{{ w.in_transit }}</td>
+                                    <td style="font-variant-numeric:tabular-nums;">{{ w.stock }}</td>
+                                    <td style="font-variant-numeric:tabular-nums;">{{ w.in_transit }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -442,7 +1245,7 @@
                         <h3>产品属性</h3>
                         <div class="detail-row"><span class="label">重量</span><span class="value">{{ detail.weight || '—' }}</span></div>
                         <div class="detail-row"><span class="label">材质</span><span class="value">{{ detail.material || '—' }}</span></div>
-                        <div class="detail-row"><span class="label">HS CODE</span><span class="value">{{ detail.hs_code || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">HS CODE</span><span class="value" style="font-family:var(--font-mono);">{{ detail.hs_code || '—' }}</span></div>
                         <div class="detail-row" v-if="detail.packaging"><span class="label">包装方式</span><span class="value">{{ detail.packaging }}</span></div>
                         <div class="detail-row" v-if="detail.feature_code"><span class="label">特征码</span><span class="value">{{ detail.feature_code }}</span></div>
                     </div>
@@ -452,12 +1255,12 @@
                         <div class="fee-card" v-if="detail.order_fees.east">
                             <div class="fee-title">美东处理费: ${{ detail.order_fees.east.processing_fee }}</div>
                             <div class="fee-desc">{{ detail.fee_explanations.east }}</div>
-                            <div style="font-size:12px;margin-top:4px;">核重: {{ detail.order_fees.east.weight_kg }}kg / {{ detail.order_fees.east.weight_lb }}lb</div>
+                            <div style="font-size:12px;margin-top:4px;color:var(--text-secondary);">核重: {{ detail.order_fees.east.weight_kg }}kg / {{ detail.order_fees.east.weight_lb }}lb</div>
                         </div>
                         <div class="fee-card" v-if="detail.order_fees.west">
                             <div class="fee-title">美西处理费: ${{ detail.order_fees.west.processing_fee }}</div>
                             <div class="fee-desc">{{ detail.fee_explanations.west }}</div>
-                            <div style="font-size:12px;margin-top:4px;">仓库: {{ detail.order_fees.west.warehouse }} | 核重: {{ detail.order_fees.west.weight_g }}g | 尺寸: {{ detail.order_fees.west.dimensions }}</div>
+                            <div style="font-size:12px;margin-top:4px;color:var(--text-secondary);">仓库: {{ detail.order_fees.west.warehouse }} | 核重: {{ detail.order_fees.west.weight_g }}g | 尺寸: {{ detail.order_fees.west.dimensions }}</div>
                         </div>
                         <div class="fee-card" v-if="detail.first_leg_fee">
                             <div class="fee-title">头程费: ¥{{ detail.first_leg_fee }}</div>
@@ -520,7 +1323,6 @@ createApp({
         };
 
         const cellClick = (x, y) => {
-            // 跳转到商品列表并自动筛选
             page.value = 'products';
             const [xAxis, yAxis] = matrixMode.value.split(',');
             filters.keyword = '';
@@ -695,8 +1497,8 @@ createApp({
         const statusTagClass = (status) => {
             if (!status || status === '在售') return 'tag-green';
             if (status.includes('下架')) return 'tag-gray';
-            if (status.includes('包销')) return 'tag-blue';
-            return 'tag-orange';
+            if (status.includes('包销')) return 'tag-magenta';
+            return 'tag-amber';
         };
 
         const handleImgError = (e) => {
