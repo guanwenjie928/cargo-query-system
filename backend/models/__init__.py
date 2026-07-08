@@ -5,5 +5,6 @@ from backend.models.product import Product
 from backend.models.warehouse_stock import WarehouseStock
 from backend.models.order_fee import OrderFee
 from backend.models.import_log import ImportLog
+from backend.models.product_snapshot import ProductSnapshot
 
-__all__ = ["Product", "WarehouseStock", "OrderFee", "ImportLog"]
+__all__ = ["Product", "WarehouseStock", "OrderFee", "ImportLog", "ProductSnapshot"]

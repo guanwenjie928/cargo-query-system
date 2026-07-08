@@ -27,7 +27,7 @@ def get_db():
 def init_db():
     """初始化数据库（建表 + 创建索引）"""
     # 导入所有模型以确保表被注册
-    from backend.models import product, warehouse_stock, order_fee, import_log  # noqa: F401
+    from backend.models import product, warehouse_stock, order_fee, import_log, product_snapshot  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 

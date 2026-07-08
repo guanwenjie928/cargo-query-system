@@ -1114,42 +1114,115 @@
                 <div class="upload-zone" @click="$refs.fileInput.click()">
                     <div class="icon">📁</div>
                     <div class="text">{{ importFile ? importFile.name : '点击选择 Excel 文件' }}</div>
-                    <div class="hint">支持库存表(.xlsx) 和 报价表(.xlsx)，系统自动识别文件类型</div>
+                    <div class="hint">上传后自动与现有数据比对，可勾选要应用的变更</div>
                 </div>
                 <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none;" @change="onFileSelect">
 
-                <!-- 预览结果 -->
-                <div v-if="parsePreview" style="margin-top:24px;">
-                    <h3 style="margin-bottom:12px;font-size:16px;font-weight:600;">解析预览</h3>
-                    <div style="background:rgba(196,69,54,0.04);border:1px solid var(--border-light);border-radius:12px;padding:16px;margin-bottom:16px;">
-                        <div style="font-size:14px;color:var(--text-primary);">文件类型: <b>{{ parsePreview.file_type === 'stock' ? '库存表' : '报价表' }}</b></div>
-                        <div style="font-size:14px;color:var(--text-primary);">文件日期: <b>{{ parsePreview.file_date }}</b></div>
-                        <div v-if="parsePreview.file_type === 'stock'" style="font-size:13px;color:var(--text-secondary);margin-top:4px;">
-                            库存Sheet: {{ parsePreview.summary.stock_sheet_count }} SKU /
-                            图片Sheet: {{ parsePreview.summary.sheet2_count }} SKU /
-                            图片: {{ parsePreview.summary.image_count }} 张
-                        </div>
-                        <div v-else style="font-size:13px;color:var(--text-secondary);margin-top:4px;">
-                            产品数: {{ parsePreview.summary.product_count }} /
-                            图片: {{ parsePreview.summary.image_count }} 张 /
-                            美东处理费: {{ parsePreview.summary.fees_east_count }} /
-                            美西处理费: {{ parsePreview.summary.fees_west_count }}
+                <!-- 比对中 -->
+                <div v-if="comparing" style="margin-top:24px;text-align:center;padding:40px;">
+                    <span class="spinner"></span> 正在解析并比对数据...
+                </div>
+
+                <!-- 比对结果 -->
+                <div v-if="compareResult" style="margin-top:24px;">
+                    <!-- 文件信息 -->
+                    <div style="background:rgba(196,69,54,0.04);border:1px solid var(--border-light);border-radius:12px;padding:16px;margin-bottom:20px;">
+                        <div style="font-size:14px;color:var(--text-primary);">
+                            文件: <b>{{ compareResult.file_name }}</b> |
+                            类型: <b>{{ compareResult.file_type === 'stock' ? '库存表' : '报价表' }}</b> |
+                            日期: <b>{{ compareResult.file_date }}</b>
                         </div>
                     </div>
-                    <table class="product-table" v-if="parsePreview.preview">
-                        <thead>
-                            <tr>
-                                <th v-for="(val, key) in parsePreview.preview[0]" :key="key">{{ key }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(item, i) in parsePreview.preview" :key="i">
-                                <td v-for="(val, key) in item" :key="key">{{ val ?? '—' }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <button class="btn btn-primary" style="margin-top:16px;" @click="confirmImport" :disabled="importing">
-                        {{ importing ? '导入中...' : '确认导入' }}
+
+                    <!-- 统计栏 -->
+                    <div style="display:flex;gap:16px;margin-bottom:20px;">
+                        <div style="flex:1;padding:16px;border-radius:12px;background:rgba(58,142,124,0.08);border:1px solid rgba(58,142,124,0.2);text-align:center;">
+                            <div style="font-size:28px;font-weight:800;color:#3A8E7C;">{{ compareResult.summary.new_count }}</div>
+                            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">新增 SKU</div>
+                        </div>
+                        <div style="flex:1;padding:16px;border-radius:12px;background:rgba(196,69,54,0.08);border:1px solid rgba(196,69,54,0.2);text-align:center;">
+                            <div style="font-size:28px;font-weight:800;color:#C44536;">{{ compareResult.summary.changed_count }}</div>
+                            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">有变更</div>
+                        </div>
+                        <div style="flex:1;padding:16px;border-radius:12px;background:rgba(154,139,126,0.08);border:1px solid rgba(154,139,126,0.2);text-align:center;">
+                            <div style="font-size:28px;font-weight:800;color:#9A8B7E;">{{ compareResult.summary.unchanged_count }}</div>
+                            <div style="font-size:13px;color:var(--text-secondary);margin-top:4px;">无变化</div>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+                        <button class="btn" @click="selectAll">全选</button>
+                        <button class="btn" @click="deselectAll">取消全选</button>
+                        <button class="btn" @click="selectNewOnly">仅选新增</button>
+                        <button class="btn" @click="selectChangedOnly">仅选变更</button>
+                        <span style="margin-left:auto;font-size:14px;color:var(--text-secondary);">
+                            已选 <b style="color:var(--orange);">{{ selectedSkus.size }}</b> 个 SKU
+                        </span>
+                    </div>
+
+                    <!-- 变更明细表 -->
+                    <div v-if="compareResult.changed_items.length > 0" style="margin-bottom:24px;">
+                        <h3 style="margin-bottom:12px;font-size:16px;font-weight:600;">变更明细 ({{ compareResult.changed_items.length }})</h3>
+                        <div style="max-height:400px;overflow-y:auto;border:1px solid var(--border-light);border-radius:12px;">
+                            <table class="product-table">
+                                <thead style="position:sticky;top:0;background:var(--bg-white);z-index:1;">
+                                    <tr>
+                                        <th style="width:40px;"><input type="checkbox" :checked="allChangedSelected" @change="toggleAllChanged"></th>
+                                        <th>SKU</th>
+                                        <th>产品名称</th>
+                                        <th>变更字段</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in compareResult.changed_items" :key="item.sku" :style="{background: selectedSkus.has(item.sku) ? 'rgba(196,69,54,0.04)' : 'transparent'}">
+                                        <td><input type="checkbox" :checked="selectedSkus.has(item.sku)" @change="toggleSku(item.sku)"></td>
+                                        <td style="font-family:var(--font-mono);font-size:13px;">{{ item.sku }}</td>
+                                        <td>{{ item.product_name || '—' }}</td>
+                                        <td>
+                                            <div v-for="(change, field) in item.changes" :key="field" style="font-size:12px;margin-bottom:4px;">
+                                                <span style="color:var(--text-secondary);">{{ change.label }}:</span>
+                                                <span style="color:#B33A2E;text-decoration:line-through;">{{ change.old ?? '—' }}</span>
+                                                <span style="margin:0 4px;color:var(--text-muted);">→</span>
+                                                <span style="color:#3A8E7C;font-weight:600;">{{ change.new ?? '—' }}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 新增 SKU 列表 -->
+                    <div v-if="compareResult.new_items.length > 0" style="margin-bottom:24px;">
+                        <h3 style="margin-bottom:12px;font-size:16px;font-weight:600;">新增 SKU ({{ compareResult.new_items.length }})</h3>
+                        <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border-light);border-radius:12px;">
+                            <table class="product-table">
+                                <thead style="position:sticky;top:0;background:var(--bg-white);z-index:1;">
+                                    <tr>
+                                        <th style="width:40px;"><input type="checkbox" :checked="allNewSelected" @change="toggleAllNew"></th>
+                                        <th>SKU</th>
+                                        <th>产品名称</th>
+                                        <th>品类</th>
+                                        <th>价格/库存</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="item in compareResult.new_items" :key="item.sku" :style="{background: selectedSkus.has(item.sku) ? 'rgba(58,142,124,0.04)' : 'transparent'}">
+                                        <td><input type="checkbox" :checked="selectedSkus.has(item.sku)" @change="toggleSku(item.sku)"></td>
+                                        <td style="font-family:var(--font-mono);font-size:13px;">{{ item.sku }}</td>
+                                        <td>{{ item.product_name || '—' }}</td>
+                                        <td>{{ item.category || '—' }}</td>
+                                        <td>{{ item.price_usd != null ? '$' + item.price_usd : (item.stock_total != null ? item.stock_total + '件' : '—') }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 确认导入按钮 -->
+                    <button class="btn btn-primary" style="margin-top:8px;" @click="confirmImport" :disabled="importing || selectedSkus.size === 0">
+                        {{ importing ? '导入中...' : `确认导入 (${selectedSkus.size} 个 SKU)` }}
                     </button>
                 </div>
 
@@ -1415,49 +1488,121 @@ createApp({
 
         // ====== 导入管理 ======
         const importFile = ref(null);
-        const parsePreview = ref(null);
+        const comparing = ref(false);
+        const compareResult = ref(null);
         const importing = ref(false);
         const importResult = ref(null);
         const importLogs = ref([]);
+        const selectedSkus = ref(new Set());
+
+        // 计算属性：变更项/新增项是否全选
+        const allChangedSelected = computed(() => {
+            if (!compareResult.value || compareResult.value.changed_items.length === 0) return false;
+            return compareResult.value.changed_items.every(item => selectedSkus.value.has(item.sku));
+        });
+        const allNewSelected = computed(() => {
+            if (!compareResult.value || compareResult.value.new_items.length === 0) return false;
+            return compareResult.value.new_items.every(item => selectedSkus.value.has(item.sku));
+        });
 
         const onFileSelect = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
             importFile.value = file;
-            parsePreview.value = null;
+            compareResult.value = null;
             importResult.value = null;
+            selectedSkus.value = new Set();
+            comparing.value = true;
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const res = await fetch(`${API}/import/parse`, { method: 'POST', body: formData });
+                const res = await fetch(`${API}/import/compare`, { method: 'POST', body: formData });
                 const json = await res.json();
                 if (json.code === 0) {
-                    parsePreview.value = json.data;
+                    compareResult.value = json.data;
+                    // 默认全选
+                    selectAll();
                 } else {
-                    importResult.value = { code: 1, message: json.detail || '解析失败' };
+                    importResult.value = { code: 1, message: json.detail || '比对失败' };
                 }
             } catch (e) {
                 importResult.value = { code: 1, message: '网络错误: ' + e.message };
             }
+            comparing.value = false;
+        };
+
+        const toggleSku = (sku) => {
+            const newSet = new Set(selectedSkus.value);
+            if (newSet.has(sku)) { newSet.delete(sku); } else { newSet.add(sku); }
+            selectedSkus.value = newSet;
+        };
+
+        const toggleAllChanged = (e) => {
+            const newSet = new Set(selectedSkus.value);
+            if (e.target.checked) {
+                compareResult.value.changed_items.forEach(item => newSet.add(item.sku));
+            } else {
+                compareResult.value.changed_items.forEach(item => newSet.delete(item.sku));
+            }
+            selectedSkus.value = newSet;
+        };
+
+        const toggleAllNew = (e) => {
+            const newSet = new Set(selectedSkus.value);
+            if (e.target.checked) {
+                compareResult.value.new_items.forEach(item => newSet.add(item.sku));
+            } else {
+                compareResult.value.new_items.forEach(item => newSet.delete(item.sku));
+            }
+            selectedSkus.value = newSet;
+        };
+
+        const selectAll = () => {
+            const newSet = new Set();
+            if (compareResult.value) {
+                compareResult.value.changed_items.forEach(item => newSet.add(item.sku));
+                compareResult.value.new_items.forEach(item => newSet.add(item.sku));
+            }
+            selectedSkus.value = newSet;
+        };
+
+        const deselectAll = () => { selectedSkus.value = new Set(); };
+
+        const selectNewOnly = () => {
+            const newSet = new Set();
+            if (compareResult.value) {
+                compareResult.value.new_items.forEach(item => newSet.add(item.sku));
+            }
+            selectedSkus.value = newSet;
+        };
+
+        const selectChangedOnly = () => {
+            const newSet = new Set();
+            if (compareResult.value) {
+                compareResult.value.changed_items.forEach(item => newSet.add(item.sku));
+            }
+            selectedSkus.value = newSet;
         };
 
         const confirmImport = async () => {
-            if (!importFile.value) return;
+            if (!compareResult.value || selectedSkus.value.size === 0) return;
             importing.value = true;
             importResult.value = null;
 
             const formData = new FormData();
-            formData.append('file', importFile.value);
+            formData.append('session_id', compareResult.value.session_id);
+            formData.append('selected_skus', JSON.stringify([...selectedSkus.value]));
 
             try {
-                const res = await fetch(`${API}/import/upload`, { method: 'POST', body: formData });
+                const res = await fetch(`${API}/import/apply`, { method: 'POST', body: formData });
                 const json = await res.json();
                 importResult.value = json;
                 if (json.code === 0) {
-                    parsePreview.value = null;
+                    compareResult.value = null;
                     importFile.value = null;
+                    selectedSkus.value = new Set();
                     loadLogs();
                     loadStats();
                     loadCategories();
@@ -1525,8 +1670,11 @@ createApp({
             products, total, currentPage, pageSize, productsLoading, viewMode,
             categories, filters, loadProducts, resetFilters, changePage,
             detailVisible, detail, detailLoading, showDetail,
-            importFile, parsePreview, importing, importResult, importLogs,
+            importFile, comparing, compareResult, importing, importResult, importLogs,
+            selectedSkus, allChangedSelected, allNewSelected,
             onFileSelect, confirmImport, rollback,
+            toggleSku, toggleAllChanged, toggleAllNew,
+            selectAll, deselectAll, selectNewOnly, selectChangedOnly,
             stockTagClass, statusTagClass, handleImgError,
         };
     }

@@ -141,8 +141,22 @@ def parse_category_sheet(ws, category: str) -> tuple:
         if product["sku"]:
             products.append(product)
 
-    # 提取图片（图片锚定在 A 列附近，需要关联到产品块）
-    images = extract_images_from_sheet(ws, sku_col=3, model_rows=model_rows)
+    # 构建 model_row → SKU 映射（用于将图片 key 从行号转换为 SKU）
+    model_row_to_sku = {}
+    for row_idx in model_rows:
+        sku_val = ws.cell(row=row_idx, column=3).value  # C 列是 SKU 值
+        if sku_val:
+            model_row_to_sku[row_idx] = str(sku_val).strip()
+
+    # 提取图片（返回 {model_row_number: img_bytes}）
+    raw_images = extract_images_from_sheet(ws, sku_col=3, model_rows=model_rows)
+
+    # 转换为 {sku: img_bytes}，与 data_merger 的查找逻辑对齐
+    images = {}
+    for row_num, img_data in raw_images.items():
+        sku = model_row_to_sku.get(row_num)
+        if sku:
+            images[sku] = img_data
 
     return products, images
 

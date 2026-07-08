@@ -4,11 +4,12 @@
 """
 import os
 import shutil
+import json
 from datetime import datetime
 from typing import Dict, List, Any
 from sqlalchemy.orm import Session
 
-from backend.models import Product, WarehouseStock, OrderFee, ImportLog
+from backend.models import Product, WarehouseStock, OrderFee, ImportLog, ProductSnapshot
 from backend.config import UPLOAD_DIR, ARCHIVE_DIR
 from backend.utils import (
     calc_stock_status,
@@ -313,3 +314,248 @@ def _find_image_by_sku(images: Dict, sku: str, item: Dict) -> bytes:
     if sku_stripped in images:
         return images[sku_stripped]
     return None
+
+
+# ============================================================
+# 以下为「比对 → 手动选择 → 应用」流程的函数
+# ============================================================
+
+def _save_snapshot(db: Session, product: Product, batch_no: str):
+    """保存商品更新前的完整快照到 product_snapshots 表"""
+    snapshot = ProductSnapshot(
+        sku=product.sku,
+        batch_no=batch_no,
+        snapshot_data=json.dumps(
+            product.to_dict(include_detail=True),
+            default=str,
+            ensure_ascii=False,
+        ),
+    )
+    db.add(snapshot)
+
+
+def apply_selected_data(
+    db: Session,
+    parsed_data: Dict,
+    file_path: str,
+    file_name: str,
+    file_type: str,
+    selected_skus: List[str],
+) -> ImportLog:
+    """
+    应用选中的 SKU 数据到数据库
+
+    流程：
+    1. 仅处理 selected_skus 中的 SKU
+    2. 对已存在的商品：先保存旧数据快照到 product_snapshots，再更新
+    3. 对新商品：直接创建
+    4. 保存图片（如有）
+    """
+    batch_no = generate_batch_no()
+    file_date = extract_file_date(file_name)
+    selected_set = set(selected_skus)
+
+    log = ImportLog(
+        batch_no=batch_no,
+        file_name=file_name,
+        file_type=file_type,
+        file_path=file_path,
+        file_date=file_date,
+        status="processing",
+    )
+    db.add(log)
+    db.flush()
+
+    total = len(selected_skus)
+    success = 0
+    merged = 0
+    fail_details = []
+
+    if file_type == "stock":
+        stock_products = parsed_data.get("stock_products", [])
+        sheet2_products = parsed_data.get("sheet2_products", [])
+        images = parsed_data.get("images", {})
+        sheet2_map = {p["sku"]: p for p in sheet2_products}
+
+        for item in stock_products:
+            sku = item["sku"]
+            if sku not in selected_set:
+                continue
+            try:
+                existing = db.query(Product).filter(Product.sku == sku).first()
+                s2 = sheet2_map.get(sku, {})
+
+                if existing:
+                    # 保存快照后更新
+                    merged += 1
+                    _save_snapshot(db, existing, batch_no)
+
+                    if item.get("product_name"):
+                        existing.product_name = item["product_name"]
+                    existing.stock_total = item.get("stock_total", 0)
+                    existing.in_transit = item.get("in_transit", 0)
+                    existing.stock_status = calc_stock_status(existing.stock_total)
+                    existing.import_batch = batch_no
+                    existing.updated_at = datetime.now()
+
+                    # 图片：新文件日期更新则覆盖
+                    if sku in images:
+                        if not existing.image_date or is_newer_date(file_date, existing.image_date):
+                            img_filename = save_image(images[sku], sku, batch_no, UPLOAD_DIR)
+                            existing.image_path = img_filename
+                            existing.image_source = "stock"
+                            existing.image_date = file_date
+
+                    product = existing
+                else:
+                    # 新建商品
+                    stock = item.get("stock_total", 0)
+                    product = Product(
+                        sku=sku,
+                        product_name=item.get("product_name"),
+                        stock_total=stock,
+                        in_transit=item.get("in_transit", 0),
+                        stock_status=calc_stock_status(stock),
+                        product_status="在售",
+                        import_batch=batch_no,
+                    )
+                    db.add(product)
+                    db.flush()
+
+                    if sku in images:
+                        img_filename = save_image(images[sku], sku, batch_no, UPLOAD_DIR)
+                        product.image_path = img_filename
+                        product.image_source = "stock"
+                        product.image_date = file_date
+
+                # 更新仓库明细
+                db.query(WarehouseStock).filter(WarehouseStock.sku == sku).delete()
+                for wh in item.get("warehouses", []):
+                    ws_record = WarehouseStock(
+                        product_id=product.id,
+                        sku=sku,
+                        warehouse=wh["warehouse"],
+                        stock=wh["stock"],
+                        in_transit=wh["in_transit"],
+                    )
+                    db.add(ws_record)
+
+                success += 1
+            except Exception as e:
+                fail_details.append({"sku": sku, "error": str(e)})
+
+    elif file_type == "quotation":
+        products = parsed_data.get("products", [])
+        images = parsed_data.get("images", {})
+        fees_east = parsed_data.get("fees_east", [])
+        fees_west = parsed_data.get("fees_west", [])
+
+        for item in products:
+            sku = (item.get("sku") or "").strip()
+            if not sku or sku not in selected_set:
+                continue
+            try:
+                existing = db.query(Product).filter(Product.sku == sku).first()
+                img_data = images.get(sku)
+
+                if existing:
+                    # 保存快照后更新
+                    merged += 1
+                    _save_snapshot(db, existing, batch_no)
+
+                    existing.product_name = item.get("product_name") or existing.product_name
+                    existing.product_name_en = item.get("product_name_en")
+                    existing.category = item.get("category")
+                    existing.weight = item.get("weight")
+                    existing.material = item.get("material")
+                    existing.hs_code = item.get("hs_code")
+                    existing.limit_price = item.get("limit_price")
+                    existing.packaging = item.get("packaging")
+                    existing.feature_code = item.get("feature_code")
+                    existing.product_status = item.get("product_status") or "在售"
+                    existing.shipping_mark = item.get("shipping_mark")
+
+                    if item.get("price_usd") is not None:
+                        existing.price_usd = item["price_usd"]
+                        existing.price_range = calc_price_range(item["price_usd"])
+                    if item.get("price_rmb") is not None:
+                        existing.price_rmb = item["price_rmb"]
+                    if item.get("first_leg_fee") is not None:
+                        existing.first_leg_fee = item["first_leg_fee"]
+
+                    existing.import_batch = batch_no
+                    existing.updated_at = datetime.now()
+
+                    # 图片：新文件日期更新则覆盖
+                    if img_data:
+                        if not existing.image_date or is_newer_date(file_date, existing.image_date):
+                            img_filename = save_image(img_data, sku, batch_no, UPLOAD_DIR)
+                            existing.image_path = img_filename
+                            existing.image_source = "quotation"
+                            existing.image_date = file_date
+
+                    product = existing
+                else:
+                    # 新建商品
+                    price_usd = item.get("price_usd")
+                    stock = 0
+                    product = Product(
+                        sku=sku,
+                        product_name=item.get("product_name"),
+                        product_name_en=item.get("product_name_en"),
+                        category=item.get("category"),
+                        stock_total=stock,
+                        stock_status=calc_stock_status(stock),
+                        price_usd=price_usd,
+                        price_rmb=item.get("price_rmb"),
+                        price_range=calc_price_range(price_usd),
+                        weight=item.get("weight"),
+                        material=item.get("material"),
+                        hs_code=item.get("hs_code"),
+                        limit_price=item.get("limit_price"),
+                        packaging=item.get("packaging"),
+                        feature_code=item.get("feature_code"),
+                        first_leg_fee=item.get("first_leg_fee"),
+                        product_status=item.get("product_status") or "在售",
+                        shipping_mark=item.get("shipping_mark"),
+                        import_batch=batch_no,
+                    )
+                    db.add(product)
+                    db.flush()
+
+                    if img_data:
+                        img_filename = save_image(img_data, sku, batch_no, UPLOAD_DIR)
+                        product.image_path = img_filename
+                        product.image_source = "quotation"
+                        product.image_date = file_date
+
+                success += 1
+            except Exception as e:
+                fail_details.append({"sku": sku, "error": str(e)})
+
+        # 导入选中 SKU 的订单处理费
+        for fee in fees_east:
+            if fee["sku"] in selected_set:
+                db.query(OrderFee).filter(
+                    OrderFee.sku == fee["sku"],
+                    OrderFee.region == "east",
+                ).delete()
+                db.add(OrderFee(**fee))
+
+        for fee in fees_west:
+            if fee["sku"] in selected_set:
+                db.query(OrderFee).filter(
+                    OrderFee.sku == fee["sku"],
+                    OrderFee.region == "west",
+                ).delete()
+                db.add(OrderFee(**fee))
+
+    log.total_rows = total
+    log.success_rows = success
+    log.fail_rows = total - success
+    log.merged_rows = merged
+    log.fail_details = str(fail_details) if fail_details else None
+    log.status = "completed"
+
+    db.commit()
+    return log
