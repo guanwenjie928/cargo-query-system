@@ -545,3 +545,59 @@ def rollback_import(batch_no: str, db: Session = Depends(get_db)):
         "message": f"已回滚批次 {batch_no}，删除 {deleted_products} 个商品",
         "data": {"deleted_products": deleted_products, "deleted_fees": deleted_fees},
     }
+
+
+@router.post("/clear-all")
+def clear_all_data(db: Session = Depends(get_db)):
+    """
+    清空所有商品数据（不可恢复）
+
+    清空范围：
+    - products（商品）
+    - warehouse_stock（仓库库存明细）
+    - order_fees（订单处理费）
+    - product_snapshots（历史快照）
+    - import_logs（导入日志）
+    - uploads/images/（图片文件）
+    """
+    from backend.models import Product, WarehouseStock, OrderFee, ProductSnapshot
+    from backend.config import UPLOAD_DIR
+
+    # 统计删除前数量
+    product_count = db.query(Product).count()
+    warehouse_count = db.query(WarehouseStock).count()
+    fee_count = db.query(OrderFee).count()
+    snapshot_count = db.query(ProductSnapshot).count()
+    log_count = db.query(ImportLog).count()
+
+    # 删除所有表数据
+    db.query(WarehouseStock).delete(synchronize_session=False)
+    db.query(OrderFee).delete(synchronize_session=False)
+    db.query(ProductSnapshot).delete(synchronize_session=False)
+    db.query(Product).delete(synchronize_session=False)
+    db.query(ImportLog).delete(synchronize_session=False)
+    db.commit()
+
+    # 清空图片文件目录
+    deleted_images = 0
+    if UPLOAD_DIR.exists():
+        for f in UPLOAD_DIR.iterdir():
+            if f.is_file():
+                try:
+                    f.unlink()
+                    deleted_images += 1
+                except Exception:
+                    pass
+
+    return {
+        "code": 0,
+        "message": "所有数据已清空",
+        "data": {
+            "deleted_products": product_count,
+            "deleted_warehouses": warehouse_count,
+            "deleted_fees": fee_count,
+            "deleted_snapshots": snapshot_count,
+            "deleted_logs": log_count,
+            "deleted_images": deleted_images,
+        },
+    }

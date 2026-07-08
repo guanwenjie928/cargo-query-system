@@ -1110,7 +1110,12 @@
         <!-- ============ 导入管理 ============ -->
         <template v-if="page==='import'">
             <div class="import-area">
-                <h2>导入 Excel 文件</h2>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h2>导入 Excel 文件</h2>
+                    <button class="btn" style="color:#B33A2E;border-color:rgba(179,58,46,0.3);" @click="clearAllData" :disabled="clearing">
+                        {{ clearing ? '清空中...' : '清空所有数据' }}
+                    </button>
+                </div>
                 <div class="upload-zone" @click="$refs.fileInput.click()">
                     <div class="icon">📁</div>
                     <div class="text">{{ importFile ? importFile.name : '点击选择 Excel 文件' }}</div>
@@ -1493,6 +1498,7 @@ createApp({
         const importing = ref(false);
         const importResult = ref(null);
         const importLogs = ref([]);
+        const clearing = ref(false);
         const selectedSkus = ref(new Set());
 
         // 计算属性：变更项/新增项是否全选
@@ -1632,6 +1638,37 @@ createApp({
             } catch (e) { console.error(e); }
         };
 
+        const clearAllData = async () => {
+            // 二次确认，防止误操作
+            const step1 = confirm('⚠️ 确定要清空所有数据吗？\n\n这将删除：所有商品、库存明细、处理费、历史快照、导入日志和图片文件。\n此操作不可恢复！');
+            if (!step1) return;
+            const step2 = confirm('再次确认：真的要清空全部数据吗？\n\n输入确定后将立即执行，无法撤销。');
+            if (!step2) return;
+
+            clearing.value = true;
+            try {
+                const res = await fetch(`${API}/import/clear-all`, { method: 'POST' });
+                const json = await res.json();
+                if (json.code === 0) {
+                    const d = json.data;
+                    alert(`已清空：${d.deleted_products} 个商品 / ${d.deleted_warehouses} 条库存 / ${d.deleted_fees} 条处理费 / ${d.deleted_images} 张图片`);
+                    // 重置前端状态
+                    compareResult.value = null;
+                    importFile.value = null;
+                    importResult.value = null;
+                    importLogs.value = [];
+                    selectedSkus.value = new Set();
+                    loadStats();
+                    loadCategories();
+                } else {
+                    alert('清空失败: ' + (json.detail || '未知错误'));
+                }
+            } catch (e) {
+                alert('网络错误: ' + e.message);
+            }
+            clearing.value = false;
+        };
+
         // ====== 工具函数 ======
         const stockTagClass = (status) => {
             if (status === '充足') return 'tag-green';
@@ -1670,9 +1707,9 @@ createApp({
             products, total, currentPage, pageSize, productsLoading, viewMode,
             categories, filters, loadProducts, resetFilters, changePage,
             detailVisible, detail, detailLoading, showDetail,
-            importFile, comparing, compareResult, importing, importResult, importLogs,
+            importFile, comparing, compareResult, importing, importResult, importLogs, clearing,
             selectedSkus, allChangedSelected, allNewSelected,
-            onFileSelect, confirmImport, rollback,
+            onFileSelect, confirmImport, rollback, clearAllData,
             toggleSku, toggleAllChanged, toggleAllNew,
             selectAll, deselectAll, selectNewOnly, selectChangedOnly,
             stockTagClass, statusTagClass, handleImgError,
