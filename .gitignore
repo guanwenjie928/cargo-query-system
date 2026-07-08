@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+env/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Frontend build (included in repo since it's a single-file build)
+# frontend/dist/
+
+# Database
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+data/*.backup.*
+
+# Uploaded images (runtime data, not source code)
+data/uploads/images/*
+
+# Archives (large Excel files, not needed in repo)
+archives/
+
+# Assets (original Excel files, too large for repo)
+assets/upload/*.xlsx
+
+# Claude Code config (not part of project)
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Keep directory structure (placeholder files)
+!data/uploads/images/.gitkeep
+!data/.gitkeep

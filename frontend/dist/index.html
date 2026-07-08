@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>货盘查询系统</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ant-design-vue@4.2.3/dist/reset.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f0f2f5; }
+        #app { min-height: 100vh; }
+
+        /* 顶栏 */
+        .header { background: #fff; padding: 0 24px; height: 64px; display: flex; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 100; }
+        .header-logo { font-size: 20px; font-weight: 700; color: #1677ff; margin-right: 48px; }
+        .header-nav { display: flex; gap: 8px; flex: 1; }
+        .nav-item { padding: 8px 16px; cursor: pointer; border-radius: 6px; font-size: 14px; color: #595959; transition: all 0.2s; }
+        .nav-item:hover { background: #f0f5ff; color: #1677ff; }
+        .nav-item.active { background: #1677ff; color: #fff; }
+
+        /* 统计卡片 */
+        .stats-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .stat-card { background: #fff; border-radius: 8px; padding: 20px 24px; flex: 1; min-width: 200px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .stat-card .label { font-size: 13px; color: #8c8c8c; margin-bottom: 8px; }
+        .stat-card .value { font-size: 28px; font-weight: 700; }
+        .stat-card .value.green { color: #52c41a; }
+        .stat-card .value.orange { color: #fa8c16; }
+        .stat-card .value.red { color: #ff4d4f; }
+        .stat-card .value.blue { color: #1677ff; }
+
+        /* 矩阵 */
+        .matrix-container { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .matrix-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .matrix-tab { padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; background: #f5f5f5; color: #595959; transition: all 0.2s; }
+        .matrix-tab:hover { background: #e6f7ff; color: #1677ff; }
+        .matrix-tab.active { background: #1677ff; color: #fff; }
+        .matrix-table { width: 100%; border-collapse: collapse; }
+        .matrix-table th, .matrix-table td { border: 1px solid #f0f0f0; padding: 12px 16px; text-align: center; font-size: 14px; }
+        .matrix-table th { background: #fafafa; font-weight: 600; color: #262626; }
+        .matrix-table td.cell { cursor: pointer; transition: all 0.2s; position: relative; }
+        .matrix-table td.cell:hover { background: #e6f7ff; }
+        .matrix-table td.cell .count { font-size: 18px; font-weight: 700; color: #1677ff; }
+        .matrix-table td.cell .previews { display: flex; gap: 4px; margin-top: 4px; justify-content: center; }
+        .matrix-table td.cell .previews img { width: 32px; height: 32px; border-radius: 4px; object-fit: cover; }
+        .matrix-table td.cell.empty .count { color: #d9d9d9; }
+
+        /* 商品列表 */
+        .content-area { padding: 24px; max-width: 1600px; margin: 0 auto; }
+        .toolbar { background: #fff; border-radius: 8px; padding: 16px 24px; margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .toolbar input, .toolbar select { padding: 6px 12px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 14px; outline: none; }
+        .toolbar input:focus, .toolbar select:focus { border-color: #1677ff; }
+        .toolbar input { min-width: 200px; }
+        .btn { padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; border: 1px solid #d9d9d9; background: #fff; color: #595959; transition: all 0.2s; }
+        .btn:hover { border-color: #1677ff; color: #1677ff; }
+        .btn-primary { background: #1677ff; color: #fff; border-color: #1677ff; }
+        .btn-primary:hover { background: #4096ff; }
+
+        /* 商品卡片网格 */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+        .product-card { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); cursor: pointer; transition: all 0.2s; }
+        .product-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
+        .product-card .card-img { width: 100%; height: 160px; object-fit: cover; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #d9d9d9; font-size: 40px; }
+        .product-card .card-body { padding: 12px 16px; }
+        .product-card .card-sku { font-size: 13px; color: #8c8c8c; margin-bottom: 4px; }
+        .product-card .card-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: #262626; }
+        .product-card .card-info { display: flex; justify-content: space-between; font-size: 13px; }
+        .product-card .card-price { color: #ff4d4f; font-weight: 600; font-size: 16px; }
+        .product-card .card-stock { color: #595959; }
+        .product-card .card-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 4px; }
+        .tag-green { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .tag-orange { background: #fff7e6; color: #fa8c16; border: 1px solid #ffd591; }
+        .tag-red { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        .tag-blue { background: #e6f7ff; color: #1677ff; border: 1px solid #91d5ff; }
+        .tag-gray { background: #f5f5f5; color: #8c8c8c; border: 1px solid #d9d9d9; }
+
+        /* 表格视图 */
+        .product-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .product-table th { background: #fafafa; padding: 12px 16px; text-align: left; font-size: 13px; color: #262626; font-weight: 600; border-bottom: 1px solid #f0f0f0; }
+        .product-table td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #595959; }
+        .product-table tr:hover { background: #fafafa; }
+        .product-table img { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; }
+        .product-table .no-img { width: 48px; height: 48px; border-radius: 4px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #d9d9d9; font-size: 20px; }
+
+        /* 分页 */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; }
+        .pagination .page-info { font-size: 14px; color: #8c8c8c; margin-right: 16px; }
+
+        /* 抽屉 */
+        .drawer-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 200; }
+        .drawer { position: fixed; top: 0; right: 0; width: 500px; max-width: 90vw; height: 100vh; background: #fff; z-index: 201; overflow-y: auto; padding: 24px; }
+        .drawer-title { font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .drawer-close { cursor: pointer; font-size: 20px; color: #8c8c8c; }
+        .detail-section { margin-bottom: 24px; }
+        .detail-section h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #262626; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
+        .detail-row { display: flex; padding: 6px 0; font-size: 14px; }
+        .detail-row .label { width: 120px; color: #8c8c8c; flex-shrink: 0; }
+        .detail-row .value { color: #262626; flex: 1; }
+        .detail-img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; margin-bottom: 16px; background: #f5f5f5; }
+        .fee-card { background: #f9f9f9; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; }
+        .fee-card .fee-title { font-weight: 600; margin-bottom: 4px; }
+        .fee-card .fee-desc { font-size: 12px; color: #8c8c8c; }
+
+        /* 导入页 */
+        .import-area { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .upload-zone { border: 2px dashed #d9d9d9; border-radius: 8px; padding: 48px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .upload-zone:hover { border-color: #1677ff; background: #f0f5ff; }
+        .upload-zone .icon { font-size: 48px; color: #d9d9d9; margin-bottom: 16px; }
+        .upload-zone .text { font-size: 15px; color: #595959; }
+        .upload-zone .hint { font-size: 13px; color: #8c8c8c; margin-top: 8px; }
+        .import-log { margin-top: 24px; }
+        .import-log-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+        .import-log-item .log-info { flex: 1; }
+        .import-log-item .log-file { font-weight: 600; font-size: 14px; }
+        .import-log-item .log-meta { font-size: 12px; color: #8c8c8c; margin-top: 4px; }
+
+        /* 模态框 */
+        .modal-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 300; display: flex; align-items: center; justify-content: center; }
+        .modal { background: #fff; border-radius: 8px; padding: 24px; width: 600px; max-width: 90vw; max-height: 80vh; overflow-y: auto; }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+        /* 加载中 */
+        .loading { text-align: center; padding: 48px; color: #8c8c8c; font-size: 15px; }
+        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid #f0f0f0; border-top-color: #1677ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- 顶栏 -->
+    <div class="header">
+        <div class="header-logo">🦜 货盘查询系统</div>
+        <div class="header-nav">
+            <div class="nav-item" :class="{active: page==='dashboard'}" @click="goPage('dashboard')">矩阵看板</div>
+            <div class="nav-item" :class="{active: page==='products'}" @click="goPage('products')">商品列表</div>
+            <div class="nav-item" :class="{active: page==='import'}" @click="goPage('import')">导入管理</div>
+        </div>
+    </div>
+
+    <div class="content-area">
+        <!-- ============ 矩阵看板 ============ -->
+        <template v-if="page==='dashboard'">
+            <!-- 统计卡片 -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="label">总 SKU 数</div>
+                    <div class="value blue">{{ stats.total_skus || 0 }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">总库存件数</div>
+                    <div class="value green">{{ (stats.total_stock || 0).toLocaleString() }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">缺货 SKU</div>
+                    <div class="value red">{{ stats.out_of_stock_count || 0 }}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">已下架</div>
+                    <div class="value orange">{{ stats.discontinued_count || 0 }}</div>
+                </div>
+            </div>
+
+            <!-- 品类分布 -->
+            <div class="stats-row" v-if="stats.category_distribution">
+                <div class="stat-card" v-for="(count, cat) in stats.category_distribution" :key="cat">
+                    <div class="label">{{ cat }}</div>
+                    <div class="value blue">{{ count }}</div>
+                </div>
+            </div>
+
+            <!-- 矩阵 -->
+            <div class="matrix-container">
+                <div class="matrix-tabs">
+                    <div class="matrix-tab" :class="{active: matrixMode==='category,price_range'}" @click="switchMatrix('category,price_range')">品类 × 价格</div>
+                    <div class="matrix-tab" :class="{active: matrixMode==='category,stock_status'}" @click="switchMatrix('category,stock_status')">品类 × 库存</div>
+                    <div class="matrix-tab" :class="{active: matrixMode==='price_range,stock_status'}" @click="switchMatrix('price_range,stock_status')">价格 × 库存</div>
+                    <div class="matrix-tab" :class="{active: matrixMode==='category,product_status'}" @click="switchMatrix('category,product_status')">品类 × 状态</div>
+                </div>
+                <div v-if="matrixLoading" class="loading"><span class="spinner"></span>加载中...</div>
+                <table v-else class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>{{ matrixData.y_labels?.length > 0 ? yAxisLabel : '' }} \ {{ xAxisLabel }}</th>
+                            <th v-for="(x, i) in matrixData.x_labels" :key="i">{{ x }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(y, j) in matrixData.y_labels" :key="j">
+                            <td style="font-weight:600;">{{ y }}</td>
+                            <td v-for="(x, i) in matrixData.x_labels" :key="i"
+                                class="cell"
+                                :class="{empty: !matrixData.matrix[j] || !matrixData.matrix[j][i]}"
+                                @click="cellClick(x, y)">
+                                <div class="count">{{ matrixData.matrix[j] ? matrixData.matrix[j][i] || 0 : 0 }}</div>
+                                <div class="previews" v-if="matrixData.preview_images && matrixData.preview_images[i + '_' + j]">
+                                    <img v-for="(img, k) in matrixData.preview_images[i + '_' + j].slice(0, 5)" :key="k" :src="img" @error="handleImgError">
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+
+        <!-- ============ 商品列表 ============ -->
+        <template v-if="page==='products'">
+            <div class="toolbar">
+                <input v-model="filters.keyword" placeholder="搜索 SKU 或产品名称" @keyup.enter="loadProducts">
+                <select v-model="filters.category">
+                    <option value="">全部品类</option>
+                    <option v-for="c in categories" :key="c.name" :value="c.name">{{ c.name }} ({{ c.count }})</option>
+                </select>
+                <select v-model="filters.stock_status">
+                    <option value="">全部库存状态</option>
+                    <option value="充足">充足</option>
+                    <option value="紧张">紧张</option>
+                    <option value="缺货">缺货</option>
+                </select>
+                <select v-model="filters.product_status">
+                    <option value="">全部产品状态</option>
+                    <option value="在售">在售</option>
+                    <option value="已下架">已下架</option>
+                    <option value="销完库存下架">销完库存下架</option>
+                    <option value="包销">包销</option>
+                </select>
+                <input v-model.number="filters.min_price" type="number" placeholder="最低$" style="min-width:100px;">
+                <input v-model.number="filters.max_price" type="number" placeholder="最高$" style="min-width:100px;">
+                <button class="btn btn-primary" @click="loadProducts">搜索</button>
+                <button class="btn" @click="resetFilters">重置</button>
+                <div style="flex:1"></div>
+                <div class="matrix-tab" :class="{active: viewMode==='card'}" @click="viewMode='card'">卡片视图</div>
+                <div class="matrix-tab" :class="{active: viewMode==='table'}" @click="viewMode='table'">表格视图</div>
+            </div>
+
+            <div v-if="productsLoading" class="loading"><span class="spinner"></span>加载中...</div>
+
+            <!-- 卡片视图 -->
+            <div v-else-if="viewMode==='card'" class="product-grid">
+                <div class="product-card" v-for="p in products" :key="p.id" @click="showDetail(p.id)">
+                    <div class="card-img">
+                        <img v-if="p.image_url" :src="p.image_url" style="width:100%;height:160px;object-fit:cover;" @error="handleImgError">
+                        <span v-else>📦</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-sku">{{ p.sku }}</div>
+                        <div class="card-name">{{ p.product_name || '未命名' }}</div>
+                        <div class="card-info">
+                            <span class="card-price" v-if="p.price_usd">${{ p.price_usd }}</span>
+                            <span class="card-price" v-else>—</span>
+                            <span class="card-stock">库存: {{ p.stock_total }}</span>
+                        </div>
+                        <div style="margin-top:6px;">
+                            <span class="card-tag" :class="stockTagClass(p.stock_status)">{{ p.stock_status }}</span>
+                            <span class="card-tag tag-blue" v-if="p.category">{{ p.category }}</span>
+                            <span class="card-tag tag-gray" v-if="p.product_status && p.product_status !== '在售'">{{ p.product_status }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 表格视图 -->
+            <table v-else class="product-table">
+                <thead>
+                    <tr>
+                        <th>图片</th>
+                        <th>SKU</th>
+                        <th>产品名称</th>
+                        <th>品类</th>
+                        <th>USD</th>
+                        <th>RMB</th>
+                        <th>库存</th>
+                        <th>库存状态</th>
+                        <th>产品状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="p in products" :key="p.id">
+                        <td>
+                            <img v-if="p.image_url" :src="p.image_url" @error="handleImgError">
+                            <div v-else class="no-img">📦</div>
+                        </td>
+                        <td>{{ p.sku }}</td>
+                        <td>{{ p.product_name || '—' }}</td>
+                        <td>{{ p.category || '—' }}</td>
+                        <td style="color:#ff4d4f;font-weight:600;">${{ p.price_usd || '—' }}</td>
+                        <td>¥{{ p.price_rmb || '—' }}</td>
+                        <td>{{ p.stock_total }}</td>
+                        <td><span class="card-tag" :class="stockTagClass(p.stock_status)">{{ p.stock_status }}</span></td>
+                        <td><span class="card-tag" :class="statusTagClass(p.product_status)">{{ p.product_status }}</span></td>
+                        <td><button class="btn" style="padding:2px 8px;" @click="showDetail(p.id)">详情</button></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 分页 -->
+            <div class="pagination" v-if="total > 0">
+                <span class="page-info">共 {{ total }} 条，第 {{ currentPage }}/{{ Math.ceil(total / pageSize) }} 页</span>
+                <button class="btn" :disabled="currentPage<=1" @click="changePage(1)">首页</button>
+                <button class="btn" :disabled="currentPage<=1" @click="changePage(currentPage-1)">上一页</button>
+                <select v-model.number="pageSize" @change="loadProducts" style="padding:4px 8px;">
+                    <option :value="20">20条/页</option>
+                    <option :value="50">50条/页</option>
+                    <option :value="100">100条/页</option>
+                </select>
+                <button class="btn" :disabled="currentPage>=Math.ceil(total/pageSize)" @click="changePage(currentPage+1)">下一页</button>
+                <button class="btn" :disabled="currentPage>=Math.ceil(total/pageSize)" @click="changePage(Math.ceil(total/pageSize))">末页</button>
+            </div>
+        </template>
+
+        <!-- ============ 导入管理 ============ -->
+        <template v-if="page==='import'">
+            <div class="import-area">
+                <h2 style="margin-bottom:24px;">导入 Excel 文件</h2>
+                <div class="upload-zone" @click="$refs.fileInput.click()">
+                    <div class="icon">📁</div>
+                    <div class="text">{{ importFile ? importFile.name : '点击选择 Excel 文件' }}</div>
+                    <div class="hint">支持库存表(.xlsx) 和 报价表(.xlsx)，系统自动识别文件类型</div>
+                </div>
+                <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display:none;" @change="onFileSelect">
+
+                <!-- 预览结果 -->
+                <div v-if="parsePreview" style="margin-top:24px;">
+                    <h3 style="margin-bottom:12px;">解析预览</h3>
+                    <div style="background:#f9f9f9;border-radius:6px;padding:16px;margin-bottom:16px;">
+                        <div>文件类型: <b>{{ parsePreview.file_type === 'stock' ? '库存表' : '报价表' }}</b></div>
+                        <div>文件日期: <b>{{ parsePreview.file_date }}</b></div>
+                        <div v-if="parsePreview.file_type === 'stock'">
+                            库存Sheet: {{ parsePreview.summary.stock_sheet_count }} SKU /
+                            图片Sheet: {{ parsePreview.summary.sheet2_count }} SKU /
+                            图片: {{ parsePreview.summary.image_count }} 张
+                        </div>
+                        <div v-else>
+                            产品数: {{ parsePreview.summary.product_count }} /
+                            图片: {{ parsePreview.summary.image_count }} 张 /
+                            美东处理费: {{ parsePreview.summary.fees_east_count }} /
+                            美西处理费: {{ parsePreview.summary.fees_west_count }}
+                        </div>
+                    </div>
+                    <table class="product-table" v-if="parsePreview.preview">
+                        <thead>
+                            <tr>
+                                <th v-for="(val, key) in parsePreview.preview[0]" :key="key">{{ key }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(item, i) in parsePreview.preview" :key="i">
+                                <td v-for="(val, key) in item" :key="key">{{ val ?? '—' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button class="btn btn-primary" style="margin-top:16px;" @click="confirmImport" :disabled="importing">
+                        {{ importing ? '导入中...' : '确认导入' }}
+                    </button>
+                </div>
+
+                <!-- 导入结果 -->
+                <div v-if="importResult" style="margin-top:24px;padding:16px;border-radius:6px;" :style="{background: importResult.code === 0 ? '#f6ffed' : '#fff2f0'}">
+                    <h3>{{ importResult.message }}</h3>
+                    <div v-if="importResult.data" style="margin-top:8px;font-size:14px;color:#595959;">
+                        总数: {{ importResult.data.total_rows }} /
+                        成功: {{ importResult.data.success_rows }} /
+                        合并更新: {{ importResult.data.merged_rows }} /
+                        失败: {{ importResult.data.fail_rows }}
+                    </div>
+                </div>
+
+                <!-- 导入历史 -->
+                <div class="import-log" v-if="importLogs.length > 0">
+                    <h3 style="margin-bottom:12px;">导入历史</h3>
+                    <div class="import-log-item" v-for="log in importLogs" :key="log.id">
+                        <div class="log-info">
+                            <div class="log-file">{{ log.file_name }}</div>
+                            <div class="log-meta">
+                                类型: {{ log.file_type }} | 日期: {{ log.file_date }} |
+                                成功: {{ log.success_rows }} | 合并: {{ log.merged_rows }} |
+                                {{ log.imported_at }} | 状态: {{ log.status }}
+                            </div>
+                        </div>
+                        <button v-if="log.status === 'completed'" class="btn" @click="rollback(log.batch_no)">回滚</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ============ 商品详情抽屉 ============ -->
+        <template v-if="detailVisible">
+            <div class="drawer-mask" @click="detailVisible=false"></div>
+            <div class="drawer">
+                <div class="drawer-title">
+                    商品详情
+                    <span class="drawer-close" @click="detailVisible=false">✕</span>
+                </div>
+                <div v-if="detailLoading" class="loading"><span class="spinner"></span>加载中...</div>
+                <template v-else-if="detail">
+                    <img v-if="detail.image_url" :src="detail.image_url" class="detail-img" @error="handleImgError">
+
+                    <div class="detail-section">
+                        <h3>基础信息</h3>
+                        <div class="detail-row"><span class="label">SKU</span><span class="value">{{ detail.sku }}</span></div>
+                        <div class="detail-row"><span class="label">产品名称</span><span class="value">{{ detail.product_name || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">英文品类</span><span class="value">{{ detail.product_name_en || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">品类</span><span class="value">{{ detail.category || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">产品状态</span><span class="value">
+                            <span class="card-tag" :class="statusTagClass(detail.product_status)">{{ detail.product_status }}</span>
+                        </span></div>
+                        <div class="detail-row" v-if="detail.shipping_mark"><span class="label">唛头</span><span class="value">{{ detail.shipping_mark }}</span></div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>价格信息</h3>
+                        <div class="detail-row"><span class="label">USD 价格</span><span class="value" style="color:#ff4d4f;font-weight:600;">${{ detail.price_usd || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">RMB 价格</span><span class="value">¥{{ detail.price_rmb || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">价格区间</span><span class="value">{{ detail.price_range || '—' }}</span></div>
+                        <div class="detail-row" v-if="detail.limit_price"><span class="label">限价</span><span class="value">{{ detail.limit_price }}</span></div>
+                        <div class="detail-row" v-if="detail.first_leg_fee"><span class="label">头程费</span><span class="value">¥{{ detail.first_leg_fee }}</span></div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>库存信息</h3>
+                        <div class="detail-row"><span class="label">总库存</span><span class="value">{{ detail.stock_total }} 件</span></div>
+                        <div class="detail-row"><span class="label">在途</span><span class="value">{{ detail.in_transit }} 件</span></div>
+                        <div class="detail-row"><span class="label">库存状态</span><span class="value">
+                            <span class="card-tag" :class="stockTagClass(detail.stock_status)">{{ detail.stock_status }}</span>
+                        </span></div>
+                    </div>
+
+                    <div class="detail-section" v-if="detail.warehouses && detail.warehouses.length > 0">
+                        <h3>仓库明细</h3>
+                        <table class="product-table" style="font-size:13px;">
+                            <thead><tr><th>仓库</th><th>库存</th><th>在途</th></tr></thead>
+                            <tbody>
+                                <tr v-for="w in detail.warehouses" :key="w.warehouse">
+                                    <td>{{ w.warehouse }}</td>
+                                    <td>{{ w.stock }}</td>
+                                    <td>{{ w.in_transit }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3>产品属性</h3>
+                        <div class="detail-row"><span class="label">重量</span><span class="value">{{ detail.weight || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">材质</span><span class="value">{{ detail.material || '—' }}</span></div>
+                        <div class="detail-row"><span class="label">HS CODE</span><span class="value">{{ detail.hs_code || '—' }}</span></div>
+                        <div class="detail-row" v-if="detail.packaging"><span class="label">包装方式</span><span class="value">{{ detail.packaging }}</span></div>
+                        <div class="detail-row" v-if="detail.feature_code"><span class="label">特征码</span><span class="value">{{ detail.feature_code }}</span></div>
+                    </div>
+
+                    <div class="detail-section" v-if="detail.order_fees && (detail.order_fees.east || detail.order_fees.west)">
+                        <h3>订单处理费</h3>
+                        <div class="fee-card" v-if="detail.order_fees.east">
+                            <div class="fee-title">美东处理费: ${{ detail.order_fees.east.processing_fee }}</div>
+                            <div class="fee-desc">{{ detail.fee_explanations.east }}</div>
+                            <div style="font-size:12px;margin-top:4px;">核重: {{ detail.order_fees.east.weight_kg }}kg / {{ detail.order_fees.east.weight_lb }}lb</div>
+                        </div>
+                        <div class="fee-card" v-if="detail.order_fees.west">
+                            <div class="fee-title">美西处理费: ${{ detail.order_fees.west.processing_fee }}</div>
+                            <div class="fee-desc">{{ detail.fee_explanations.west }}</div>
+                            <div style="font-size:12px;margin-top:4px;">仓库: {{ detail.order_fees.west.warehouse }} | 核重: {{ detail.order_fees.west.weight_g }}g | 尺寸: {{ detail.order_fees.west.dimensions }}</div>
+                        </div>
+                        <div class="fee-card" v-if="detail.first_leg_fee">
+                            <div class="fee-title">头程费: ¥{{ detail.first_leg_fee }}</div>
+                            <div class="fee-desc">{{ detail.fee_explanations.first_leg_fee }}</div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"></script>
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+
+createApp({
+    setup() {
+        const page = ref('dashboard');
+        const API = window.location.origin + '/api';
+
+        // ====== 统计卡片 ======
+        const stats = ref({});
+        const loadStats = async () => {
+            try {
+                const res = await fetch(`${API}/stats`);
+                const json = await res.json();
+                if (json.code === 0) stats.value = json.data;
+            } catch (e) { console.error(e); }
+        };
+
+        // ====== 矩阵看板 ======
+        const matrixMode = ref('category,price_range');
+        const matrixData = ref({});
+        const matrixLoading = ref(false);
+        const [defaultX, defaultY] = matrixMode.value.split(',');
+        const xAxisLabel = ref(defaultX === 'category' ? '品类' : defaultX === 'price_range' ? '价格区间' : defaultX === 'stock_status' ? '库存状态' : '产品状态');
+        const yAxisLabel = ref(defaultY === 'category' ? '品类' : defaultY === 'price_range' ? '价格区间' : defaultY === 'stock_status' ? '库存状态' : '产品状态');
+
+        const axisLabelMap = {
+            category: '品类', price_range: '价格区间', stock_status: '库存状态', product_status: '产品状态'
+        };
+
+        const loadMatrix = async () => {
+            matrixLoading.value = true;
+            const [x, y] = matrixMode.value.split(',');
+            xAxisLabel.value = axisLabelMap[x] || x;
+            yAxisLabel.value = axisLabelMap[y] || y;
+            try {
+                const res = await fetch(`${API}/matrix?x_axis=${x}&y_axis=${y}`);
+                const json = await res.json();
+                if (json.code === 0) matrixData.value = json.data;
+            } catch (e) { console.error(e); }
+            matrixLoading.value = false;
+        };
+
+        const switchMatrix = (mode) => {
+            matrixMode.value = mode;
+            loadMatrix();
+        };
+
+        const cellClick = (x, y) => {
+            // 跳转到商品列表并自动筛选
+            page.value = 'products';
+            const [xAxis, yAxis] = matrixMode.value.split(',');
+            filters.keyword = '';
+            filters.category = xAxis === 'category' ? x : '';
+            filters.stock_status = yAxis === 'stock_status' ? y : (xAxis === 'stock_status' ? x : '');
+            if (xAxis === 'price_range' || yAxis === 'price_range') {
+                const range = xAxis === 'price_range' ? x : y;
+                const match = range?.match(/\$(\d+)-(\d+)/);
+                if (match) {
+                    filters.min_price = parseInt(match[1]);
+                    filters.max_price = parseInt(match[2]);
+                }
+            }
+            loadProducts();
+        };
+
+        // ====== 商品列表 ======
+        const products = ref([]);
+        const total = ref(0);
+        const currentPage = ref(1);
+        const pageSize = ref(20);
+        const productsLoading = ref(false);
+        const viewMode = ref('card');
+        const categories = ref([]);
+        const filters = reactive({
+            keyword: '', category: '', stock_status: '', product_status: '',
+            min_price: null, max_price: null
+        });
+
+        const loadProducts = async () => {
+            productsLoading.value = true;
+            const params = new URLSearchParams({
+                page: currentPage.value, page_size: pageSize.value,
+                sort: 'updated_at', order: 'desc'
+            });
+            if (filters.keyword) params.set('keyword', filters.keyword);
+            if (filters.category) params.set('category', filters.category);
+            if (filters.stock_status) params.set('stock_status', filters.stock_status);
+            if (filters.product_status) params.set('product_status', filters.product_status);
+            if (filters.min_price) params.set('min_price', filters.min_price);
+            if (filters.max_price) params.set('max_price', filters.max_price);
+
+            try {
+                const res = await fetch(`${API}/products?${params}`);
+                const json = await res.json();
+                if (json.code === 0) {
+                    products.value = json.data.list;
+                    total.value = json.data.total;
+                }
+            } catch (e) { console.error(e); }
+            productsLoading.value = false;
+        };
+
+        const loadCategories = async () => {
+            try {
+                const res = await fetch(`${API}/products/categories`);
+                const json = await res.json();
+                if (json.code === 0) categories.value = json.data;
+            } catch (e) { console.error(e); }
+        };
+
+        const resetFilters = () => {
+            filters.keyword = ''; filters.category = '';
+            filters.stock_status = ''; filters.product_status = '';
+            filters.min_price = null; filters.max_price = null;
+            currentPage.value = 1;
+            loadProducts();
+        };
+
+        const changePage = (p) => {
+            currentPage.value = p;
+            loadProducts();
+        };
+
+        // ====== 商品详情 ======
+        const detailVisible = ref(false);
+        const detail = ref(null);
+        const detailLoading = ref(false);
+
+        const showDetail = async (id) => {
+            detailVisible.value = true;
+            detailLoading.value = true;
+            try {
+                const res = await fetch(`${API}/products/${id}`);
+                const json = await res.json();
+                if (json.code === 0) detail.value = json.data;
+            } catch (e) { console.error(e); }
+            detailLoading.value = false;
+        };
+
+        // ====== 导入管理 ======
+        const importFile = ref(null);
+        const parsePreview = ref(null);
+        const importing = ref(false);
+        const importResult = ref(null);
+        const importLogs = ref([]);
+
+        const onFileSelect = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            importFile.value = file;
+            parsePreview.value = null;
+            importResult.value = null;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API}/import/parse`, { method: 'POST', body: formData });
+                const json = await res.json();
+                if (json.code === 0) {
+                    parsePreview.value = json.data;
+                } else {
+                    importResult.value = { code: 1, message: json.detail || '解析失败' };
+                }
+            } catch (e) {
+                importResult.value = { code: 1, message: '网络错误: ' + e.message };
+            }
+        };
+
+        const confirmImport = async () => {
+            if (!importFile.value) return;
+            importing.value = true;
+            importResult.value = null;
+
+            const formData = new FormData();
+            formData.append('file', importFile.value);
+
+            try {
+                const res = await fetch(`${API}/import/upload`, { method: 'POST', body: formData });
+                const json = await res.json();
+                importResult.value = json;
+                if (json.code === 0) {
+                    parsePreview.value = null;
+                    importFile.value = null;
+                    loadLogs();
+                    loadStats();
+                    loadCategories();
+                }
+            } catch (e) {
+                importResult.value = { code: 1, message: '网络错误: ' + e.message };
+            }
+            importing.value = false;
+        };
+
+        const loadLogs = async () => {
+            try {
+                const res = await fetch(`${API}/import/logs?page=1&page_size=20`);
+                const json = await res.json();
+                if (json.code === 0) importLogs.value = json.data.list;
+            } catch (e) { console.error(e); }
+        };
+
+        const rollback = async (batchNo) => {
+            if (!confirm(`确定回滚批次 ${batchNo}?`)) return;
+            try {
+                const res = await fetch(`${API}/import/rollback/${batchNo}`, { method: 'POST' });
+                const json = await res.json();
+                alert(json.message);
+                loadLogs();
+                loadStats();
+            } catch (e) { console.error(e); }
+        };
+
+        // ====== 工具函数 ======
+        const stockTagClass = (status) => {
+            if (status === '充足') return 'tag-green';
+            if (status === '紧张') return 'tag-orange';
+            return 'tag-red';
+        };
+
+        const statusTagClass = (status) => {
+            if (!status || status === '在售') return 'tag-green';
+            if (status.includes('下架')) return 'tag-gray';
+            if (status.includes('包销')) return 'tag-blue';
+            return 'tag-orange';
+        };
+
+        const handleImgError = (e) => {
+            e.target.style.display = 'none';
+        };
+
+        const goPage = (p) => {
+            page.value = p;
+            if (p === 'dashboard') { loadStats(); loadMatrix(); }
+            if (p === 'products' && products.value.length === 0) { loadProducts(); loadCategories(); }
+            if (p === 'import') { loadLogs(); }
+        };
+
+        // ====== 初始化 ======
+        onMounted(() => {
+            loadStats();
+            loadMatrix();
+        });
+
+        return {
+            page, stats, goPage,
+            matrixMode, matrixData, matrixLoading, xAxisLabel, yAxisLabel,
+            switchMatrix, cellClick,
+            products, total, currentPage, pageSize, productsLoading, viewMode,
+            categories, filters, loadProducts, resetFilters, changePage,
+            detailVisible, detail, detailLoading, showDetail,
+            importFile, parsePreview, importing, importResult, importLogs,
+            onFileSelect, confirmImport, rollback,
+            stockTagClass, statusTagClass, handleImgError,
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
